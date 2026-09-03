@@ -4,7 +4,7 @@ import App from "./App";
 
 test("shows the local login and allows a student to sign in", async () => {
   render(<App />);
-  expect(screen.getByText("Welcome back")).toBeInTheDocument();
+  expect(await screen.findByText("Welcome back")).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText("Username"), "student");
   await userEvent.type(screen.getByLabelText("Password"), "Student123!");
   await userEvent.click(screen.getByRole("button", { name: "Sign in" }));

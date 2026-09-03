@@ -5,17 +5,20 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "multer": "^2.3.0",
+    "speakeasy": "^2.0.0",
     "sqlite3": "^5.1.7"
   }
 }

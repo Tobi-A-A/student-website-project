@@ -28,17 +28,75 @@ The app intentionally uses `localStorage`, so it works without a database or int
 | --- | --- | --- |
 | Main administrator | `mainadmin` | `ChangeMe123!` |
 | Administrator | `admin` | `Admin123!` |
+| Temporary administrator | `tempadmin` | `TempAdmin123!` |
 | Student | `student` | `Student123!` |
 
 The sign-in screen includes a **Create an account** link for new students. Student registrations are saved in the browser for the standalone demo, while the backend also exposes SQLite-backed `POST /api/accounts/students` and `POST /api/accounts/sign-in` endpoints for local integration.
 
 The main administrator can create/delete administrators and use **Design** to change the institution name, accent colour, background colour, text colour and portal font. Administrators can publish any file type as an assignment and edit result feedback. Students can view/download assignment entries and see their published results. Local browser storage is for demonstration only; uploaded binary files are represented by their metadata until a server storage API is connected.
 
+Marks now follow a protected Draft → Submitted → Approved → Published → Locked workflow. This applies the SCAMPER method to publication: **Substitute** manual exposure with gated transitions, **Combine** approval with audit and notifications, **Adapt** the workflow to bulk imports, **Modify** results with weighting/publication metadata, **Put to another use** by exporting student summaries, **Eliminate** partial invalid imports, and **Reverse** the process when a correction is needed before publication. Unpublished marks are staff-only, and published/locked results notify students in the portal.
+
 ## Folder guide
 
 - `frontend/` — React single-page portal, styling and browser-local account/content state.
+- `frontend/src/App.js` — local demo screens and workflow components (Accounts, Courses, CSV uploads, Results).
+- `frontend/src/App.css` — responsive layout, theme tokens, workflow badges and form styling.
 - `backend/` — Express local API, upload handling and SQLite database helpers.
+- `backend/test/` — focused SQLite/authentication tests.
 - `backend/school_data/` — runtime-only database and uploaded files (created automatically; do not commit its contents).
+
+## Example mark import
+
+Main administrators and administrators can use **CSV uploads** with this header:
+
+```csv
+studentId,assessmentId,mark
+STU-001,BIO-001,92
+STU-002,BIO-001,58
+```
+
+The Results screen supports adding an individual mark, filtering passing/remediation records, deleting records, moving marks through the protected workflow, correcting locked records, and recording remediation date, time, attempt count, and completion. The same passing threshold (60% by default) drives the staff and learner filters. Duplicate student/assessment marks and duplicate assignment titles within a subject are rejected.
+
+The demo uses a common high-school grading scale: A (70–100), B (60–69), C (50–59), D (40–49), and E/U (0–39). Course and assessment records can be adapted for local GCSE, A-level, college, or university rules.
+
+## Storage and server deployment
+
+The browser demo stores UI data in `localStorage`. The optional backend uses SQLite commands and stores the normal SQL database file at `backend/school_data/portal.sqlite`; it is not a hosted SQL service. Runtime uploads and database files are ignored by Git.
+
+Learner profiles now require a course choice and a unique student ID. Staff-created learners receive an explicitly labelled temporary username and `Welcome123!` password, which they can replace after signing in. Duplicate IDs and usernames are rejected before saving. After self-registration, the learner sees a dedicated **Sign in** button. The current browser storage location is shown below the workspace heading; backend records are stored in `backend/school_data/portal.sqlite`.
+
+Every account now has a **Profile** page for changing name, username and email; learners can also update their student ID and course. Username and student-ID changes are checked against existing accounts. Only the main administrator can create another main-administrator account from **Accounts**.
+
+The signed-in workspace displays the current date using the device locale. Student results calculate a normalized weighted average; remediation entries retain the original mark and show minimum, maximum, and average across recorded attempts. The campus initials in the loading, login, and workspace branding are generated from the configured school name.
+
+Assignment submissions are limited to PDF/document/image/ZIP extensions and 25 MB, with executable extensions rejected before local storage. Students confirm uploads and can remove or replace a file until staff close the submission. Administrators can download the submitted file, close it, enter a final mark, and print a mark summary through the browser's **Save as PDF** dialog; the published mark is also added to the learner's Results profile with remediation feedback when below the configured threshold.
+
+Staff can modify assignment details or mark an assignment completed. Completed assignments and assignments past their due date no longer accept student uploads. After closing a submission, staff can upload a marked feedback package as a ZIP (maximum 25 MB); the learner sees a **Download marked ZIP** button alongside the published mark. The browser demo validates extensions and size, but a production deployment should also virus-scan uploads server-side before making them downloadable.
+
+Assignments support an explicit end date and time. Staff can delete an incorrect assignment after confirmation. Students see completed/expired assignments with a strike-through state, and a normal submission is marked completed immediately with a notice that marking is pending. If the published mark is below the passing threshold, the same submission record reopens for a remediation upload; staff can download that remediation file, enter the replacement mark, and upload a marked ZIP for the learner.
+
+The Courses workspace now includes staff course administration. Added courses are stored locally and are available for learner enrolment and assignment/course matching. Staff submission cards retain the learner name, student ID, course, assignment, and uploaded file together so the correct work is downloaded and reviewed.
+
+Administrators can remove administrator-added courses from the Courses page after confirmation; built-in courses are protected. Course additions/removals use the same local-storage synchronization as assignments, so another open tab refreshes without logging out.
+
+Assignment changes are synchronized across open browser tabs without requiring sign-out (local storage events plus a short refresh interval). Staff can review each matched submission, close it, enter its mark directly on the submission card, and the result is immediately available in the learner’s Results area. Once an assignment is completed or expired, the learner cannot download/remove or replace the submitted file.
+
+Results recalculate the grade and remediation status whenever staff change the passing percentage; saved marks are never silently reinterpreted using the old threshold. For learners: open **Results** after publication, download the summary/marked ZIP, read staff feedback, and follow the remediation deadline if shown. For staff: verify the learner, course, assessment and submission, enter a 0–100 score, add clear feedback, check the calculated threshold result, then publish and provide the marked feedback package.
+
+### Testing a CSV import
+
+Create a plain-text file named `sample-marks.csv` in the project folder with exactly this content:
+
+```csv
+studentId,assessmentId,mark
+STU-001,BIO-001,92
+STU-001,BIO-002,58
+```
+
+Start the backend and use the staff **CSV uploads** screen to select it. Valid rows appear as Draft marks; invalid, duplicate, missing-student, or malformed rows return an error report and import zero rows. The browser UI remains available on other devices only when the frontend is hosted and configured to call a reachable backend; the current demo itself is local-browser storage.
+
+To make this available on an actual server: move authentication fully to the backend, set a strong `DB_PATH` outside the repository, use HTTPS and secure cookies, configure a real mail provider for password-reset delivery, use a managed database/object store for production files, add backups and migrations, restrict CORS to the frontend origin, run behind a reverse proxy/process manager, set production secrets through environment variables, and add monitoring, malware scanning and privacy/retention controls before handling student data.
 
 ## Production architecture
 
