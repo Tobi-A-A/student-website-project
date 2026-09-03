@@ -26,7 +26,7 @@ function App() {
   const [accounts, setAccounts] = useState(() => load("portal-accounts", ACCOUNTS));
   const [assignments, setAssignments] = useState(() => load("portal-assignments", DEFAULT_ASSIGNMENTS));
   const [marks, setMarks] = useState(() => load("portal-marks", DEFAULT_MARKS));
-  const [theme, setTheme] = useState(() => load("portal-theme", { name: "Northstar Academy", accent: "#0f766e" }));
+  const [theme, setTheme] = useState(() => load("portal-theme", { name: "Northstar Academy", accent: "#0f766e", background: "#f7faf8", ink: "#17211f", font: "DM Sans" }));
   const [notice, setNotice] = useState("");
 
   const persist = (key, value, setter) => { setter(value); localStorage.setItem(key, JSON.stringify(value)); };
@@ -44,11 +44,11 @@ function App() {
 
   function signOut() { setUser(null); setLogin({ username: "", password: "" }); }
 
-  if (!user) return <Login login={login} setLogin={setLogin} error={loginError} onSubmit={signIn} theme={theme} />;
+  if (!user) return <Login login={login} setLogin={setLogin} setAccounts={setAccounts} error={loginError} onSubmit={signIn} theme={theme} />;
 
   const currentMarks = marks.filter((mark) => user.role !== "student" || mark.studentId === user.studentId);
   return (
-    <div className="app-shell" style={{ "--accent": theme.accent }}>
+    <div className="app-shell" style={{ "--accent": theme.accent, "--paper": theme.background, "--ink": theme.ink, "--portal-font": theme.font }}>
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">N</span><span>{theme.name}</span></div>
         <div className="profile"><div className="avatar">{user.name.split(" ").map((part) => part[0]).join("")}</div><div><strong>{user.name}</strong><small>{roleLabel[user.role]}</small></div></div>
@@ -68,8 +68,25 @@ function App() {
   );
 }
 
-function Login({ login, setLogin, error, onSubmit, theme }) {
-  return <div className="login-page"><div className="login-art"><span className="brand-mark">N</span><p className="eyebrow">Your campus, connected</p><h1>Make space for<br /><em>what’s next.</em></h1><p>One calm place for teaching, learning and progress.</p></div><form className="login-card" onSubmit={onSubmit}><div className="brand dark"><span className="brand-mark">N</span><span>{theme.name}</span></div><h2>Welcome back</h2><p className="muted">Sign in to your local campus workspace.</p><label>Username<input autoFocus value={login.username} onChange={(e) => setLogin({ ...login, username: e.target.value })} /></label><label>Password<input type="password" value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} /></label>{error && <p className="error">{error}</p>}<button className="primary full" type="submit">Sign in</button><div className="demo-box"><strong>Demo accounts</strong><span>mainadmin / ChangeMe123!</span><span>admin / Admin123!</span><span>student / Student123!</span></div></form></div>;
+function Login({ login, setLogin, setAccounts, error, onSubmit, theme }) {
+  const [registering, setRegistering] = useState(false);
+  const [registration, setRegistration] = useState({ name: "", username: "", password: "", studentId: "" });
+  const [registrationError, setRegistrationError] = useState("");
+  const register = (event) => {
+    event.preventDefault();
+    const username = registration.username.trim();
+    if (!registration.name.trim() || !username || !registration.password || !registration.studentId.trim()) {
+      setRegistrationError("Complete every field to create your student account."); return;
+    }
+    const accounts = load("portal-accounts", ACCOUNTS);
+    if (accounts.some((account) => account.username.toLowerCase() === username.toLowerCase())) {
+      setRegistrationError("That username is already in use."); return;
+    }
+    const nextAccounts = [...accounts, { ...registration, name: registration.name.trim(), username, studentId: registration.studentId.trim(), role: "student" }];
+    localStorage.setItem("portal-accounts", JSON.stringify(nextAccounts)); setAccounts(nextAccounts);
+    setRegistering(false); setRegistrationError(""); setLogin({ username, password: registration.password });
+  };
+  return <div className="login-page"><div className="login-art"><span className="brand-mark">N</span><p className="eyebrow">Your campus, connected</p><h1>Make space for<br /><em>what’s next.</em></h1><p>One calm place for teaching, learning and progress.</p></div>{registering ? <form className="login-card" onSubmit={register}><div className="brand dark"><span className="brand-mark">N</span><span>{theme.name}</span></div><h2>Create your account</h2><p className="muted">Register as a new student for this local campus demo.</p><label>Full name<input autoFocus value={registration.name} onChange={(e) => setRegistration({ ...registration, name: e.target.value })} /></label><label>Student ID<input value={registration.studentId} onChange={(e) => setRegistration({ ...registration, studentId: e.target.value })} /></label><label>Username<input value={registration.username} onChange={(e) => setRegistration({ ...registration, username: e.target.value })} /></label><label>Password<input type="password" value={registration.password} onChange={(e) => setRegistration({ ...registration, password: e.target.value })} /></label>{registrationError && <p className="error">{registrationError}</p>}<button className="primary full" type="submit">Create account</button><button className="text-button auth-link" type="button" onClick={() => { setRegistering(false); setRegistrationError(""); }}>Already have an account? Sign in</button></form> : <form className="login-card" onSubmit={onSubmit}><div className="brand dark"><span className="brand-mark">N</span><span>{theme.name}</span></div><h2>Welcome back</h2><p className="muted">Sign in to your local campus workspace.</p><label>Username<input autoFocus value={login.username} onChange={(e) => setLogin({ ...login, username: e.target.value })} /></label><label>Password<input type="password" value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} /></label>{error && <p className="error">{error}</p>}<button className="primary full" type="submit">Sign in</button><button className="text-button auth-link" type="button" onClick={() => setRegistering(true)}>New student? Create an account</button><div className="demo-box"><strong>Demo accounts</strong><span>mainadmin / ChangeMe123!</span><span>admin / Admin123!</span><span>student / Student123!</span></div></form>}</div>;
 }
 
 function Overview({ user, assignments, marks, accounts }) {
@@ -102,7 +119,7 @@ function Results({ marks, canEdit, setMarks }) {
 function Design({ theme, setTheme }) {
   const [draft, setDraft] = useState(theme);
   const save = (e) => { e.preventDefault(); setTheme(draft); };
-  return <form className="panel design-panel" onSubmit={save}><p className="eyebrow">Brand settings</p><h3>Make the portal yours</h3><p className="muted">These settings are saved in this browser and can mirror your institution’s identity.</p><label>Institution name<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label><label>Accent colour<div className="color-control"><input type="color" value={draft.accent} onChange={(e) => setDraft({ ...draft, accent: e.target.value })} /><code>{draft.accent}</code></div></label><button className="primary" type="submit">Save design</button></form>;
+  return <form className="panel design-panel" onSubmit={save}><p className="eyebrow">Brand settings</p><h3>Make the portal yours</h3><p className="muted">Personalise the local workspace for your institution. Changes apply to every account in this browser.</p><label>Institution name<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label><label>Accent colour<div className="color-control"><input type="color" value={draft.accent} onChange={(e) => setDraft({ ...draft, accent: e.target.value })} /><code>{draft.accent}</code></div></label><label>Background colour<div className="color-control"><input type="color" value={draft.background || "#f7faf8"} onChange={(e) => setDraft({ ...draft, background: e.target.value })} /><code>{draft.background || "#f7faf8"}</code></div></label><label>Text colour<div className="color-control"><input type="color" value={draft.ink || "#17211f"} onChange={(e) => setDraft({ ...draft, ink: e.target.value })} /><code>{draft.ink || "#17211f"}</code></div></label><label>Portal font<select value={draft.font || "DM Sans"} onChange={(e) => setDraft({ ...draft, font: e.target.value })}><option>DM Sans</option><option>Georgia</option><option>Arial</option><option>Verdana</option></select></label><button className="primary" type="submit">Save design</button></form>;
 }
 
 export default App;

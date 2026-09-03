@@ -1,0 +1,3 @@
+node_modules/
+school_data/*.sqlite
+school_data/*.sqlite-*

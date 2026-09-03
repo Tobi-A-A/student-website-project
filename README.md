@@ -10,6 +10,18 @@ npm install
 npm start
 ```
 
+In a second terminal, start the local SQLite API (optional for the browser-only demo):
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+The API listens on `http://localhost:5000` and stores its SQLite database at
+`backend/school_data/portal.sqlite`. It is deliberately local-only; no hosted
+services, payment or funding integrations are included.
+
 The app intentionally uses `localStorage`, so it works without a database or internet. Demo accounts:
 
 | Role | Username | Password |
@@ -18,7 +30,15 @@ The app intentionally uses `localStorage`, so it works without a database or int
 | Administrator | `admin` | `Admin123!` |
 | Student | `student` | `Student123!` |
 
-The main administrator can create/delete administrators and change the institution name/accent colour. Administrators can publish any file type as an assignment and edit result feedback. Students can view/download assignment entries and see their published results. Local browser storage is for demonstration only; uploaded binary files are represented by their metadata until a server storage API is connected.
+The sign-in screen includes a **Create an account** link for new students. Student registrations are saved in the browser for the standalone demo, while the backend also exposes SQLite-backed `POST /api/accounts/students` and `POST /api/accounts/sign-in` endpoints for local integration.
+
+The main administrator can create/delete administrators and use **Design** to change the institution name, accent colour, background colour, text colour and portal font. Administrators can publish any file type as an assignment and edit result feedback. Students can view/download assignment entries and see their published results. Local browser storage is for demonstration only; uploaded binary files are represented by their metadata until a server storage API is connected.
+
+## Folder guide
+
+- `frontend/` — React single-page portal, styling and browser-local account/content state.
+- `backend/` — Express local API, upload handling and SQLite database helpers.
+- `backend/school_data/` — runtime-only database and uploaded files (created automatically; do not commit its contents).
 
 ## Production architecture
 

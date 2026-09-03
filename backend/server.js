@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const { createStudent, findUser } = require('./db');
 
 const app = express();
 app.use(cors());
@@ -52,6 +53,31 @@ function decrypt(text) {
 }
 
 //ENDPOINTS
+// Local-only account endpoints. Authentication is intentionally simple for this demo.
+app.post('/api/accounts/students', async (req, res) => {
+    const { name, username, password, studentId } = req.body || {};
+    if (!name || !username || !password || !studentId) {
+        return res.status(400).json({ error: 'name, username, password and studentId are required.' });
+    }
+    try {
+        res.status(201).json(await createStudent({ name: String(name).trim(), username: String(username).trim(), password, studentId: String(studentId).trim() }));
+    } catch (error) {
+        if (error.code === 'SQLITE_CONSTRAINT') return res.status(409).json({ error: 'That username is already in use.' });
+        res.status(500).json({ error: 'Could not create the local account.' });
+    }
+});
+
+app.post('/api/accounts/sign-in', async (req, res) => {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'username and password are required.' });
+    try {
+        const user = await findUser(String(username).trim(), password);
+        user ? res.json(user) : res.status(401).json({ error: 'Those details do not match a local account.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Could not sign in to the local account.' });
+    }
+});
+
 // 1. Admin: Upload Marks via CSV
 app.post('/admin/upload-marks', upload.single('file'), (req, res) => {
     const requestedSchoolId = req.body.schoolId;
