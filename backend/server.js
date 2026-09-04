@@ -74,11 +74,18 @@ app.post('/api/accounts/password-reset/confirm-legacy', async (req, res) => {
   await run('UPDATE users SET password=?, failed_attempts=0, locked_until=NULL WHERE id=?', [await bcrypt.hash(req.body.password, 12), row.user_id]); await run('UPDATE password_resets SET used=1 WHERE token_hash=?', [hash]); res.json({ ok: true });
 });
 
-function parseCsv(file) { return new Promise((resolve, reject) => { const rows = []; fs.createReadStream(file).pipe(csv()).on('data', r => rows.push(r)).on('end', () => resolve(rows)).on('error', reject); }); }
+function parseCsv(file) { return new Promise((resolve, reject) => { const rows = []; let headers = []; fs.createReadStream(file).pipe(csv({ strict: true })).on('headers', value => { headers = value; }).on('data', r => rows.push(r)).on('end', () => resolve({ rows, headers })).on('error', reject); }); }
 app.post('/admin/upload-marks', upload.single('file'), async (req, res) => {
   if (!req.body.schoolId || !req.file) return res.status(400).json({ error: 'schoolId and a CSV file are required.' });
-  let rows;
-  try { rows = await parseCsv(req.file.path); } catch (e) { fs.rmSync(req.file.path, { force: true }); return res.status(400).json({ error: `Could not parse CSV: ${e.message}` }); }
+  if (!/\.csv$/i.test(req.file.originalname)) { fs.rmSync(req.file.path, { force: true }); return res.status(415).json({ error: 'Only .csv files are accepted.' }); }
+  let parsed;
+  try { parsed = await parseCsv(req.file.path); } catch (e) { fs.rmSync(req.file.path, { force: true }); return res.status(400).json({ error: `Could not parse CSV: ${e.message}` }); }
+  const headers = parsed.headers.map(header => String(header).trim().toLowerCase());
+  const hasStudent = headers.includes('studentid') || headers.includes('student_id');
+  const hasAssessment = headers.includes('assessmentid') || headers.includes('assessment_id');
+  const missingHeaders = [!hasStudent && 'studentId', !hasAssessment && 'assessmentId', !headers.includes('mark') && 'mark'].filter(Boolean);
+  if (missingHeaders.length || !parsed.rows.length) { fs.rmSync(req.file.path, { force: true }); return res.status(422).json({ imported: 0, errors: [{ row: 1, error: missingHeaders.length ? `Missing required column(s): ${missingHeaders.join(', ')}` : 'CSV contains no data rows.' }] }); }
+  const rows = parsed.rows;
   const errors = [], seen = new Set(), valid = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i], studentId = String(r.studentId || r.student_id || '').trim(), assessmentId = String(r.assessmentId || r.assessment_id || '').trim(), value = r.mark;
@@ -88,6 +95,8 @@ app.post('/admin/upload-marks', upload.single('file'), async (req, res) => {
   for (const r of valid) {
     const student = await get('SELECT student_id FROM users WHERE student_id=?', [r.studentId]);
     if (!student) errors.push({ studentId: r.studentId, assessmentId: r.assessmentId, error: 'Student not found' });
+    const existing = await get('SELECT id FROM marks WHERE student_id=? AND assessment_id=?', [r.studentId, r.assessmentId]);
+    if (existing) errors.push({ studentId: r.studentId, assessmentId: r.assessmentId, error: 'Mark already exists' });
   }
   if (errors.length) {
     fs.rmSync(req.file.path, { force: true });

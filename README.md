@@ -1,6 +1,12 @@
-# Northstar campus portal
+# Meridian Learning Hub
 
-A responsive, local-first education portal prototype for administrators and students. It runs in a browser on Windows, Linux, macOS, iOS and Android through the same responsive web app.
+A responsive, local-first education portal prototype for administrators and students. It runs in a browser on Windows, Linux, macOS, iOS and Android through the same responsive web app. The selected app name is **Meridian Learning Hub**; existing custom institution names remain unchanged, while the old default name is migrated safely.
+
+## Capacity expectations
+
+This is a browser-local demonstration, not a concurrent production service. A single browser profile can comfortably manage roughly 100–500 learner records and 10–30 administrator accounts, depending on device memory and the size of local submission metadata. `localStorage` is usually limited to around 5–10 MB per browser origin, and uploaded file object URLs are temporary; large files or many learners will reach those limits quickly.
+
+With the optional SQLite API on a modern local machine, plan for approximately 1–10 concurrent administrators and 100–1,000 learners for a responsive demo workload. SQLite is excellent for local/small-team use, but one writer at a time and local disk/file handling become bottlenecks for simultaneous marking or uploads. For a real deployment, use a server database, object storage, API pagination, background file processing, caching, monitoring, and load testing. Exact capacity depends on hardware, file sizes, network, and workload; there is no guaranteed “no slowing down” user count without measuring the target environment.
 
 ## Run locally
 
@@ -45,6 +51,12 @@ Marks now follow a protected Draft → Submitted → Approved → Published → 
 - `backend/` — Express local API, upload handling and SQLite database helpers.
 - `backend/test/` — focused SQLite/authentication tests.
 - `backend/school_data/` — runtime-only database and uploaded files (created automatically; do not commit its contents).
+
+Unused CRA branding and the unused source logo have been removed; required favicon and manifest assets remain because the browser uses them.
+
+## Suggested UI improvements
+
+For the next iteration, add paginated learner/result tables, a visible save status for design changes, accessible colour-contrast checks, sortable assignment columns, and a compact mobile action menu. These improvements reduce visual clutter and improve usability without changing the local data model.
 
 ## Example mark import
 
@@ -94,7 +106,7 @@ STU-001,BIO-001,92
 STU-001,BIO-002,58
 ```
 
-Start the backend and use the staff **CSV uploads** screen to select it. Valid rows appear as Draft marks; invalid, duplicate, missing-student, or malformed rows return an error report and import zero rows. The browser UI remains available on other devices only when the frontend is hosted and configured to call a reachable backend; the current demo itself is local-browser storage.
+Start the backend and use the staff **CSV uploads** screen to select it. The browser validates the complete file before saving anything locally, and the backend performs the same all-or-nothing validation when `/admin/upload-marks` is used. Valid rows appear as Draft marks. Invalid file extensions, missing headers, blank files, malformed student/assessment IDs, non-numeric or out-of-range marks, duplicate student/assessment pairs, unknown students, and marks that already exist are rejected with an error message; no rows from a rejected batch are imported. Use UTF-8 CSV with the exact headers `studentId,assessmentId,mark` (the snake_case aliases `student_id,assessment_id` are accepted by the backend). Quoted values are supported by the browser demo for simple fields. The browser UI remains available on other devices only when the frontend is hosted and configured to call a reachable backend; the current demo itself is local-browser storage.
 
 To make this available on an actual server: move authentication fully to the backend, set a strong `DB_PATH` outside the repository, use HTTPS and secure cookies, configure a real mail provider for password-reset delivery, use a managed database/object store for production files, add backups and migrations, restrict CORS to the frontend origin, run behind a reverse proxy/process manager, set production secrets through environment variables, and add monitoring, malware scanning and privacy/retention controls before handling student data.
 
