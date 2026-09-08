@@ -1,0 +1,10 @@
+node_modules/
+frontend/build/
+
+# Runtime data: the SQLite database, uploaded CSVs and submitted files are all
+# generated locally at run time and must never be committed.
+backend/school_data/
+
+.env
+.DS_Store
+npm-debug.log*

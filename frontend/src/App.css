@@ -2,7 +2,7 @@
 .warning-text{display:block;line-height:1.5;overflow-wrap:anywhere;margin-top:7px}.welcome-toast{position:relative;margin-bottom:16px;padding:15px 42px 15px 18px;border:1px solid #b9ded1;border-radius:10px;background:#e6f6ef;color:#17685d;font-size:13px;animation:welcome-in .45s ease-out}.welcome-toast button{position:absolute;right:12px;top:10px;border:0;background:none;color:inherit;font-size:18px;cursor:pointer}@keyframes welcome-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .submission-card{margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:8px;background:#fbfdfc}.submission-card small{display:block;color:var(--muted);margin:4px 0 8px}.submission-card button{margin:4px 5px 0 0;padding:7px 9px;font-size:11px}.submission-card .upload-button{font-size:11px;line-height:1.2;white-space:nowrap;display:inline-flex;align-items:center;vertical-align:middle}.mark-entry{display:inline-flex;align-items:center;gap:5px;margin:4px 5px 0 0;font-size:11px;color:var(--muted)}.mark-entry input{width:70px;border:1px solid #d6e2de;border-radius:5px;padding:6px}
 .export-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}.export-tools label{font-size:12px;color:var(--muted)}.export-tools select{margin-left:6px;padding:8px;border:1px solid #d6e2de;border-radius:6px}.data-table{overflow:auto}.data-row{display:grid;grid-template-columns:1.5fr 1fr .6fr .8fr;gap:12px;padding:12px 0;border-top:1px solid var(--line);font-size:13px;align-items:center}.data-head{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}.status{font-size:11px;font-weight:600;color:var(--accent)}
-.theme-toggle{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:8px 10px;font-size:11px;cursor:pointer}.primary{display:block;min-height:42px}.dark-mode{--paper:#17211f;--ink:#e8f1ee;--line:#36534c}.dark-mode .content{background:#17211f}.dark-mode .panel,.dark-mode .stat-card,.dark-mode .login-card{background:#20332f;color:#e8f1ee;border-color:#36534c}.dark-mode .muted,.dark-mode .count{color:#aec1bb}.dark-mode input,.dark-mode select{background:#29423c;color:#e8f1ee;border-color:#527168}.dark-mode .data-row{border-color:#36534c}.login-theme-toggle{position:absolute;top:22px;right:22px}.language-select select{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:8px 10px;font-size:11px;cursor:pointer;font:inherit}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.login-top-actions{position:absolute;top:22px;right:22px;display:flex;gap:10px;align-items:center}.login-top-actions .login-theme-toggle{position:static}
+.theme-toggle{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:8px 10px;font-size:11px;cursor:pointer}.primary{display:block;min-height:42px}.dark-mode{--paper:#17211f;--ink:#e8f1ee;--line:#36534c}.dark-mode .content{background:#17211f}.dark-mode .panel,.dark-mode .stat-card,.dark-mode .login-card{background:#20332f;color:#e8f1ee;border-color:#36534c}.dark-mode .muted,.dark-mode .count{color:#aec1bb}.dark-mode input,.dark-mode select{background:#29423c;color:#e8f1ee;border-color:#527168}.dark-mode .data-row{border-color:#36534c}.login-theme-toggle{position:absolute;top:22px;right:22px}.language-select select{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:8px 10px;font-size:11px;cursor:pointer;font:inherit}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.login-top-actions{position:absolute;top:22px;right:22px;display:flex;gap:10px;align-items:center}.login-top-actions .login-theme-toggle{position:static}.essay-answer{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:7px;margin-top:6px;resize:vertical}.essay-note{font-size:12px;margin:6px 0}.essay-response{white-space:pre-wrap;background:#f4f8f6;border-radius:8px;padding:12px;font-size:13px}.question-type-row select{margin-top:6px}
 .app-shell{align-items:flex-start}.sidebar{position:sticky;top:0;height:100vh;min-height:100vh;align-self:flex-start;flex:0 0 250px;overflow-y:auto;z-index:10}.content{flex:1;min-width:0}.sign-out{position:sticky;bottom:0;z-index:11;background:#12332f}
 @media(max-width:760px){.sidebar{position:relative;top:auto;height:auto;min-height:0;flex:none;overflow:visible}.sign-out{position:absolute;bottom:auto;background:none}}
 .assignment-completed{position:relative;opacity:.72}.assignment-completed:after{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #8c9d98;pointer-events:none}.assignment-completed .submission-card,.assignment-completed button,.assignment-completed input{position:relative;z-index:1}
@@ -15,6 +15,56 @@
 .auth-link{display:block;color:var(--accent);margin:16px auto 0}
 .workflow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.workflow select{border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;font-size:11px}.status{border-radius:20px;padding:5px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.status-draft{background:#f2eee8;color:#876b4b}.status-submitted{background:#eaf0fb;color:#496da3}.status-approved{background:#e8f4ed;color:#39815b}.status-published{background:#e3f0eb;color:#17685d}.status-locked{background:#eeeef1;color:#555b67}.result-summary{display:flex;align-items:baseline;gap:12px;background:#f1f6f4;border-radius:8px;padding:14px 16px;margin-bottom:10px}.result-summary strong{font:600 28px Fraunces,serif;color:var(--accent)}.result-summary span{font-size:12px;color:var(--muted)}.summary-button{margin-left:10px}
 .workflow-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.inline-form{display:flex;gap:7px;flex-wrap:wrap;flex:1}.inline-form input{min-width:90px;flex:1;border:1px solid #d6e2de;border-radius:6px;padding:8px;font:inherit;font-size:11px}.pass-rule{font-size:11px;color:var(--muted);white-space:nowrap}.pass-rule input{width:52px;margin-left:5px;padding:7px;border:1px solid #d6e2de;border-radius:6px}.warning-text{color:#a65b38!important}.upload-panel{max-width:760px}.check-row{display:flex!important;align-items:center;gap:8px}.check-row input{width:auto!important;margin:0!important}.design-panel select,.form-panel select{display:block;width:100%;border:1px solid #d6e2de;border-radius:7px;padding:11px;margin-top:7px;font:inherit;background:#fbfdfc}
+.showcase-preview{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}.showcase-preview img{width:100%;max-height:180px;object-fit:cover;border-radius:8px}
+.conduct-box{background:#f1f6f4;border:1px solid var(--line);border-radius:8px;padding:14px;margin:14px 0;font-size:12px}.conduct-box label{display:flex!important;align-items:center;gap:8px;font-weight:600;margin:6px 0 0!important}.conduct-box input{width:auto!important;margin:0!important}
+.course-scope{margin:0 0 12px;font-size:12px}
+.missed-banner{background:#fdecec;border:1px solid #f0bcbc;color:#8c3a3a;border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.5}
+.missed-warning{font-weight:600}
+.archive-block{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+.archive-toggle{color:var(--accent);font-size:13px;padding:0}
+.archive-list{margin-top:8px;opacity:.9}
+.archive-row{background:#fafcfb;border-radius:8px;padding-left:8px}
+.own-row{background:#e8f5f0!important;font-weight:600}
+.data-table .warning-text{color:#a65b38}
+
+/* Ruled tables: every cell gets a visible border so reports and marking sheets read as a real
+   grid rather than floating text. Used by the report, leaderboard and marking-room tables. */
+.data-table.ruled-table{border-collapse:collapse;width:100%;border:1px solid var(--line)}
+.data-table.ruled-table th,.data-table.ruled-table td{border:1px solid var(--line);padding:9px 11px;vertical-align:middle}
+.data-table.ruled-table thead th{background:var(--accent);color:#fff;font-weight:600;border-color:var(--accent)}
+.data-table.ruled-table tbody tr:nth-child(even){background:rgba(15,118,110,.045)}
+.data-table.ruled-table tbody tr:hover{background:rgba(15,118,110,.1)}
+.data-table.ruled-table .total-row td{background:#eef5f2;border-top:2px solid var(--accent)}
+.dark-mode .data-table.ruled-table tbody tr:nth-child(even){background:rgba(255,255,255,.04)}
+.dark-mode .data-table.ruled-table tbody tr:hover{background:rgba(255,255,255,.09)}
+.dark-mode .data-table.ruled-table .total-row td{background:rgba(255,255,255,.07)}
+
+/* Marking room */
+.marking-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:1100px){.marking-grid{grid-template-columns:1fr}}
+.marking-pane{min-width:0}
+.marking-pane h4{margin:16px 0 6px;font-size:14px}
+.marking-pane h4:first-child{margin-top:0}
+.memo-form .memo-edit-row{display:grid;grid-template-columns:2fr 80px 2fr;gap:10px;margin-bottom:10px}
+@media (max-width:700px){.memo-form .memo-edit-row{grid-template-columns:1fr}}
+.score-input{width:72px;text-align:center;padding:7px 4px}
+.marking-pane .ruled-table th:nth-child(2),.marking-pane .ruled-table td:nth-child(2){width:70px;text-align:center}
+.marking-pane .ruled-table th:nth-child(3),.marking-pane .ruled-table td:nth-child(3){width:96px;text-align:center}
+/* The marking sheet should grow with its criteria rather than trapping the marker in a short
+   inner scroll box — the page itself scrolls, which is far easier to work through. */
+.marking-pane .table-scroll{max-height:none;overflow:visible}
+.state-chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.state-not-started{background:#eceff0;color:#5a6663}
+.state-in-progress{background:#fdf1dd;color:#8a5f1c}
+.state-released{background:#e2f3ea;color:#1d6a4c}
+.outbox-banner{background:#fdf5e6;border:1px solid #e8cf9b;color:#7a5a1c;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.5}
+.button-link{display:inline-block;margin:4px 8px 4px 0;padding:8px 14px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-size:13px;font-weight:600}
+.small-print{font-size:11.5px;line-height:1.5}
+.result-summary.below strong{color:#a65b38}
+label.stacked{display:block;margin-top:12px;font-size:12px;font-weight:600}
+label.stacked textarea{display:block;width:100%;margin-top:6px;font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.form-actions{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.reset-token{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;word-break:break-all;background:#f1f6f4;border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;color:#17211f}
 .account-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}.account-layout>.panel:last-child{grid-column:1/-1}.loading-screen{min-height:100vh;display:grid;place-items:center;align-content:center;gap:12px;background:#12332f;color:#e3f0eb}.loading-screen h1{font:600 32px Fraunces,serif;margin:0}.loading-screen p{color:#9dbab3}.loading-bar{width:180px;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--accent),#e6c58a,var(--accent));animation:loading 1.2s ease-in-out infinite}@keyframes loading{0%{transform:scaleX(.3);opacity:.4}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(.3);opacity:.4}}.score-editor{max-width:80px}.storage-note{font-size:11px;color:var(--muted)}
 .result-row{align-items:flex-start;flex-wrap:wrap}.result-row>div:first-child{min-width:220px;overflow-wrap:anywhere;flex:1 1 340px}.result-row>.grade{flex:0 0 30px}.result-row>.workflow{flex:0 1 auto}.result-row>.feedback{flex:1 1 220px;min-width:160px;cursor:text;overflow-wrap:anywhere}.warning-text{display:block;width:100%;max-width:none!important;margin-top:8px;padding:8px 10px;background:#fff4ed;border-radius:6px;line-height:1.4;overflow-wrap:anywhere}
 .result-row{display:grid;grid-template-columns:minmax(240px,1fr) auto minmax(190px,auto);align-items:start}.result-row>div:first-child{min-width:0}.result-row>.grade{grid-column:2;grid-row:1;align-self:start}.result-row>.workflow{grid-column:3;grid-row:1;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.result-row>.feedback{grid-column:1/-1;min-width:0;width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--paper)}.auth-submit{display:flex!important;align-items:center;justify-content:center;visibility:visible!important;opacity:1!important;position:relative;z-index:2}.login-card .primary{min-height:44px}
@@ -55,3 +105,38 @@
 .option-row input[type="text"]{flex:1;border:1px solid #d6e2de;border-radius:6px;padding:7px;font:inherit}
 .dark-mode .test-card{background:#20332f;border-color:#36534c}
 .dark-mode .form-grid input,.dark-mode .form-grid select,.dark-mode .filters select,.dark-mode .filters input{background:#29423c;color:#e8f1ee;border-color:#527168}
+
+/* Dark-mode readability corrections found during full-site design testing.
+   --accent and --muted are chosen for a light page; on the dark surface the teal eyebrow/grade
+   text and grey muted text fell below a 3:1 contrast ratio, and the welcome banner kept its pale
+   background while its text turned light, making the greeting effectively invisible. */
+.dark-mode{--muted:#a6b8b3}
+.dark-mode .welcome{background:#20332f;border:1px solid #36534c}
+.dark-mode .welcome-shape{color:#4f8a79}
+.dark-mode .eyebrow,.dark-mode .grade{color:#5eead4}
+.dark-mode .text-button{color:#5eead4}
+.dark-mode .text-button.danger{color:#fca5a5}
+.dark-mode .welcome-toast{background:#173b33;border-color:#2f5f53;color:#bdece0}
+.dark-mode .submission,.dark-mode small.submission{color:#a6b8b3!important}.dark-mode .status-open,.dark-mode .status-marked{color:#5eead4}
+/* Pale info panels that had no dark-mode variant, so light text landed on a near-white box. */
+.dark-mode .conduct-box{background:#1c2e2a;border-color:#36534c;color:#cfe0db}
+.dark-mode .result-summary{background:#1c2e2a;border-color:#36534c}
+.dark-mode tr.own-row{background:#204b40!important}
+.dark-mode .demo-box{background:#1c2e2a;border-color:#36534c;color:#cfe0db}/* The leaderboard/report "percentage" figure inherits --accent, which is a light-page teal. */
+.dark-mode .result-summary strong,.dark-mode .summary-figure strong{color:#5eead4}/* Notification bell panel. The bell is an interactive control, so it needs at least 3:1 contrast;
+   the stock grey failed that in light mode. */
+.icon-button{color:#3f5c55}
+.dark-mode .icon-button{color:#cfe0db}
+.trend{color:#5c6b67}
+.dark-mode .trend{color:#a6b8b3}
+.notification-wrap{position:relative;display:inline-flex}
+.notification-count{position:absolute;top:-5px;right:-6px;background:#b3261e;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.5}
+.notification-panel{position:absolute;top:calc(100% + 8px);right:0;width:310px;max-height:340px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(15,32,28,.18);padding:14px;z-index:50;text-align:left}
+.dark-mode .notification-panel{background:#20332f;border-color:#36534c;color:#e8f1ee}
+.notification-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.notification-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.notification-list li{display:flex;flex-direction:column;gap:3px;font-size:12px;border-top:1px solid var(--line);padding-top:9px}
+.notification-list li:first-child{border-top:0;padding-top:0}
+.notification-list small{color:var(--muted);font-size:10px}.checkbox-line{display:flex;align-items:flex-start;gap:8px;font-size:12px;margin:10px 0;flex-wrap:wrap}
+.checkbox-line input{margin-top:2px}
+.checkbox-line .small-print{flex:1 1 100%;margin-left:22px}

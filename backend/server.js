@@ -158,9 +158,18 @@ app.post('/admin/upload-marks', requireAdmin, upload.single('file'), async (req,
   // re-import (staff must unlock it deliberately). Anything still Draft/Submitted/Approved can be
   // safely re-imported (e.g. correcting a typo before publication) via the ON CONFLICT DO UPDATE
   // below, so those rows must NOT be treated as errors — only missing students and locked marks are.
+  // A typo in the assessmentId column used to be silently accepted, because the import creates any
+  // assessment it has not seen before. That quietly produced junk assessments ("BIO-O01") that then
+  // skewed report cards and averages. Unknown assessment IDs are now reported like any other bad
+  // data, unless the uploader explicitly opts in to creating them.
+  const allowNewAssessments = String(req.body.createAssessments || '') === 'true';
   for (const r of valid) {
     const student = await get('SELECT student_id FROM users WHERE student_id=?', [r.studentId]);
     if (!student) { errors.push({ studentId: r.studentId, assessmentId: r.assessmentId, error: 'Student not found' }); continue; }
+    if (!allowNewAssessments) {
+      const assessment = await get('SELECT id FROM assessments WHERE id=?', [r.assessmentId]);
+      if (!assessment) { errors.push({ studentId: r.studentId, assessmentId: r.assessmentId, error: 'Assessment not found — tick “Create missing assessments” if this is a new assessment' }); continue; }
+    }
     const existing = await get('SELECT status FROM marks WHERE student_id=? AND assessment_id=?', [r.studentId, r.assessmentId]);
     if (existing && ['Published', 'Locked'].includes(existing.status)) errors.push({ studentId: r.studentId, assessmentId: r.assessmentId, error: `Mark is already ${existing.status.toLowerCase()} and cannot be overwritten by import` });
   }
@@ -189,6 +198,44 @@ app.get('/student/marks/:schoolId/:studentId', requireAuth, async (req, res) => 
   res.json(rows);
 });
 app.post('/admin/marks/:id/status', requireAdmin, async (req, res) => { const next = req.body?.status; const allowed = { Draft: ['Submitted'], Submitted: ['Approved'], Approved: ['Published'], Published: ['Locked'] }; const mark = await get('SELECT * FROM marks WHERE id=?', [req.params.id]); if (!mark || !allowed[mark.status]?.includes(next)) return res.status(409).json({ error: 'Invalid workflow transition.' }); await run('UPDATE marks SET status=?,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?', [next, req.user.id, req.params.id]); if (next === 'Published') await audit(req.user.id, 'marks_published', 'mark', req.params.id); res.json({ ...mark, status: next }); });
+// Release a mark that was produced in the offline marking room.
+//
+// The marking room lets staff mark a submission with the API down, so this endpoint is the point
+// where that offline work rejoins the database. Three properties matter:
+//  1. It is idempotent by (studentId, assessmentId). The client's outbox retries until it gets a
+//     success, and a retry after a response was lost in flight must not create a duplicate mark.
+//  2. It is transactional. The assessment row and the mark row are written together, so a crash
+//     mid-release can never leave a mark pointing at an assessment that does not exist.
+//  3. It refuses to silently overwrite a mark that is already Published or Locked. Those have been
+//     seen by the student, so correcting them must go through the deliberate workflow above.
+app.post('/admin/marking/release', requireAdmin, async (req, res) => {
+  const { studentId, assessmentId, mark, assessmentName, status } = req.body || {};
+  if (!studentId || !assessmentId) return res.status(400).json({ error: 'studentId and assessmentId are required.' });
+  if (typeof mark !== 'number' || !Number.isFinite(mark) || mark < 0 || mark > 100) return res.status(400).json({ error: 'Mark must be a number between 0 and 100.' });
+  const target = ['Draft', 'Submitted', 'Approved', 'Published'].includes(status) ? status : 'Published';
+  const student = await get('SELECT student_id FROM users WHERE student_id=?', [studentId]);
+  if (!student) return res.status(404).json({ error: `No student exists with ID ${studentId}.` });
+  const existing = await get('SELECT id,status,mark FROM marks WHERE student_id=? AND assessment_id=?', [studentId, assessmentId]);
+  // Already released with this exact score: treat a retry as success so the outbox can drain.
+  if (existing && ['Published', 'Locked'].includes(existing.status)) {
+    if (Number(existing.mark) === Number(mark)) return res.json({ ok: true, id: existing.id, status: existing.status, duplicate: true });
+    return res.status(409).json({ error: 'That mark is already published or locked. Unlock it before correcting the score.' });
+  }
+  try {
+    const id = await transaction(async () => {
+      await run('INSERT INTO assessments(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING', [assessmentId, assessmentName || assessmentId]);
+      await run(`INSERT INTO marks(student_id,assessment_id,mark,status,updated_by) VALUES(?,?,?,?,?)
+        ON CONFLICT(student_id,assessment_id) DO UPDATE SET mark=excluded.mark,status=excluded.status,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP`,
+        [studentId, assessmentId, mark, target, req.user.id]);
+      const row = await get('SELECT id FROM marks WHERE student_id=? AND assessment_id=?', [studentId, assessmentId]);
+      return row?.id;
+    });
+    await audit(req.user.id, target === 'Published' ? 'marks_published' : 'marks_uploaded', 'mark', id, { studentId, assessmentId, mark, source: 'marking-room' });
+    res.json({ ok: true, id, status: target });
+  } catch (e) {
+    res.status(500).json({ error: `Could not release the mark: ${e.message}` });
+  }
+});
 // Published marks must go through the workflow (Locked) before their score can change again — this
 // keeps the Draft->Submitted->Approved->Published->Locked pipeline meaningful. Locked marks ARE
 // still editable here on purpose: it is the explicitly-requested "fix a mistake after locking"

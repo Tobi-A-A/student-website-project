@@ -43,6 +43,12 @@ const ready = new Promise((resolve, reject) => db.serialize(() => {
 }));
 
 ready.then(async () => {
+  // A fresh clone should be able to come up completely empty, so a real school never inherits
+  // fake learners or the publicly documented demo passwords. SEED_DEMO controls this:
+  //   SEED_DEMO=false  -> clean install: no accounts, no marks, nothing.
+  //   SEED_DEMO=true   -> the full demo dataset (default, so the demo keeps working out of the box).
+  // On a clean install the first administrator is created with `npm run create-admin`.
+  if (process.env.SEED_DEMO === 'false') return;
   const demoAccounts = [
     ['Jordan Lee', 'mainadmin', 'ChangeMe123!', null, 'main-admin'],
     ['Avery Morgan', 'admin', 'Admin123!', null, 'admin'],

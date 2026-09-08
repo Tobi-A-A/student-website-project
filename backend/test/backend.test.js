@@ -111,3 +111,89 @@ test('locked marks can be corrected by an admin but published marks cannot', { c
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+// The marking room can produce marks while the API is offline; its outbox retries until it gets a
+// success. That makes idempotency a correctness requirement, not a nicety: a retry sent after a
+// response was lost in flight must not create a second mark or change an already-released one.
+test('marking room release is idempotent and protects already-published marks', { concurrency: false }, async () => {
+  const server = http.createServer(app);
+  await new Promise(resolve => server.listen(0, resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const release = (cookie, body) => fetch(`${base}/admin/marking/release`, {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body)
+  });
+  try {
+    const login = await fetch(`${base}/api/accounts/sign-in`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'mainadmin', password: 'ChangeMe123!' })
+    });
+    assert.equal(login.status, 200);
+    const cookie = login.headers.get('set-cookie');
+
+    const student = await db.get("SELECT student_id FROM users WHERE role='student' LIMIT 1");
+    const payload = { studentId: student.student_id, assessmentId: 'ASSIGN-OFFLINE', assessmentName: 'Offline marking test', mark: 74, status: 'Published' };
+
+    const first = await release(cookie, payload);
+    assert.equal(first.status, 200);
+    const stored = await db.get('SELECT mark,status FROM marks WHERE student_id=? AND assessment_id=?', [student.student_id, 'ASSIGN-OFFLINE']);
+    assert.equal(stored.mark, 74);
+    assert.equal(stored.status, 'Published');
+
+    // Replaying the identical entry (the outbox retrying a request whose reply was lost) succeeds
+    // without creating a duplicate row.
+    const replay = await release(cookie, payload);
+    assert.equal(replay.status, 200);
+    assert.equal((await replay.json()).duplicate, true);
+    const count = await db.get('SELECT COUNT(*) AS n FROM marks WHERE student_id=? AND assessment_id=?', [student.student_id, 'ASSIGN-OFFLINE']);
+    assert.equal(count.n, 1);
+
+    // A different score for an already-published mark must be refused, not silently applied.
+    const conflicting = await release(cookie, { ...payload, mark: 91 });
+    assert.equal(conflicting.status, 409);
+    const unchanged = await db.get('SELECT mark FROM marks WHERE student_id=? AND assessment_id=?', [student.student_id, 'ASSIGN-OFFLINE']);
+    assert.equal(unchanged.mark, 74);
+
+    // Validation: unknown student and out-of-range marks are rejected before touching the database.
+    assert.equal((await release(cookie, { ...payload, studentId: 'NOPE-999', assessmentId: 'ASSIGN-X' })).status, 404);
+    assert.equal((await release(cookie, { ...payload, assessmentId: 'ASSIGN-Y', mark: 150 })).status, 400);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+// A typo in the assessmentId column used to create a brand-new assessment silently, which then
+// polluted averages and report cards. The import must now reject unknown assessment ids unless the
+// uploader deliberately opts in, and it must remain all-or-nothing.
+test('CSV import rejects unknown assessment ids unless explicitly allowed', { concurrency: false }, async () => {
+  const server = http.createServer(app);
+  await new Promise(resolve => server.listen(0, resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const login = await fetch(`${base}/api/accounts/sign-in`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'mainadmin', password: 'ChangeMe123!' })
+    });
+    const cookie = login.headers.get('set-cookie');
+    const student = await db.get("SELECT student_id FROM users WHERE role='student' AND student_id IS NOT NULL LIMIT 1");
+    const post = async (assessmentId, create) => {
+      const form = new FormData();
+      form.append('schoolId', 'test');
+      if (create) form.append('createAssessments', 'true');
+      form.append('file', new Blob([`studentId,assessmentId,mark\n${student.student_id},${assessmentId},80`], { type: 'text/csv' }), 'marks.csv');
+      return fetch(`${base}/admin/upload-marks`, { method: 'POST', headers: { cookie }, body: form });
+    };
+
+    const typo = await post('DOES-NOT-EXIST-1', false);
+    assert.equal(typo.status, 422);
+    const body = await typo.json();
+    assert.equal(body.imported, 0);
+    assert.match(body.errors[0].error, /Assessment not found/);
+    // Nothing may be written when the file is rejected.
+    assert.ok(!(await db.get("SELECT id FROM assessments WHERE id='DOES-NOT-EXIST-1'")));
+
+    const optedIn = await post('DOES-NOT-EXIST-1', true);
+    assert.equal(optedIn.status, 200);
+    assert.equal((await optedIn.json()).imported, 1);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
