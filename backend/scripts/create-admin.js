@@ -1,5 +1,5 @@
-// Creates the first administrator on a clean install (SEED_DEMO=false), where no demo accounts
-// exist and there would otherwise be no way to sign in.
+// Creates the first administrator on a clean install, where no demo accounts exist and there
+// would otherwise be no way to sign in.
 //
 //   npm run create-admin
 //
@@ -7,6 +7,12 @@
 // into shell history or a process listing, and only its bcrypt hash is stored.
 const readline = require('readline');
 const bcrypt = require('bcryptjs');
+
+// Requiring ../db opens the database, which triggers demo seeding unless it is switched off.
+// Creating an administrator must never have the side effect of inventing 50 demo students, so
+// seeding is disabled here before the module loads. Setting SEED_DEMO=true explicitly still wins,
+// for anyone deliberately adding an admin to the demo dataset.
+if (process.env.SEED_DEMO !== 'true') process.env.SEED_DEMO = 'false';
 const { run, get } = require('../db');
 
 const interactive = process.stdin.isTTY;

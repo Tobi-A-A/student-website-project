@@ -8,6 +8,88 @@ This is a browser-local demonstration, not a concurrent production service. A si
 
 With the optional SQLite API on a modern local machine, plan for approximately 1–10 concurrent administrators and 100–1,000 learners for a responsive demo workload. SQLite is excellent for local/small-team use, but one writer at a time and local disk/file handling become bottlenecks for simultaneous marking or uploads. For a real deployment, use a server database, object storage, API pagination, background file processing, caching, monitoring, and load testing. Exact capacity depends on hardware, file sizes, network, and workload; there is no guaranteed “no slowing down” user count without measuring the target environment.
 
+## Installation
+
+### Requirements
+
+| | Minimum | Notes |
+| --- | --- | --- |
+| **Node.js** | 18 or newer | 20 LTS or 22 LTS recommended. Check with `node --version`. |
+| **npm** | 9 or newer | Ships with Node. Check with `npm --version`. |
+| **Disk** | ~600 MB | Mostly `node_modules`; the database itself is a few MB. |
+| Git | any | Only needed to clone. |
+
+Nothing else is required — no database server to install, no Docker, no accounts to
+register. The database is a single SQLite file created automatically on first run.
+
+### Install
+
+The project is two npm packages — `frontend/` and `backend/` — and **each needs its own
+`npm install`**. Installing only one is the most common setup mistake:
+
+```bash
+git clone <your-repository-url>
+cd student-website-project
+
+# 1. Backend (the SQLite API)
+cd backend
+npm install
+
+# 2. Frontend (the React portal) — note the ../
+cd ../frontend
+npm install
+```
+
+### Run
+
+Two terminals, both kept open:
+
+```bash
+# Terminal 1 — API on http://localhost:5000
+cd backend
+npm start
+
+# Terminal 2 — portal on http://localhost:3000
+cd frontend
+npm start
+```
+
+Then open **http://localhost:3000** and sign in with `mainadmin` / `ChangeMe123!`.
+
+Schools and colleges setting up for real use should follow
+[Clean install: starting with no demo data](#clean-install-starting-with-no-demo-data)
+instead, so no demo learners or demo passwords are ever created.
+
+### GitHub Codespaces
+
+Codespaces works, with one difference: the frontend must be told where the API is,
+because port 5000 is not on `localhost` from the browser's point of view.
+
+1. Run both `npm install` steps and both `npm start` commands as above.
+2. Open the **Ports** panel, find port **5000**, and set its visibility to **Public**
+   (right-click → Port Visibility → Public). Without this the browser is blocked from
+   reaching the API and the portal falls back to offline mode.
+3. Copy the forwarded URL for port 5000, then restart the frontend with it:
+
+```bash
+cd frontend
+REACT_APP_API_BASE="https://<your-codespace>-5000.app.github.dev" npm start
+```
+
+The status line under the workspace heading shows whether the API connected. If it
+reads *offline/browser fallback*, port 5000 is either not running or still private.
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `Module not found: Error: Can't resolve 'jszip'` | Dependencies were not installed in `frontend/`. Run `npm install` there. If it persists, delete `frontend/node_modules` and `frontend/package-lock.json`, then `npm install` again. |
+| `Cannot find module 'express'` / `'sqlite3'` | Same problem in `backend/`. Run `npm install` inside `backend/`. |
+| Portal loads but shows *offline/browser fallback* | The API is not reachable. Confirm `npm start` is running in `backend/`, and on Codespaces that port 5000 is Public. |
+| `EADDRINUSE: address already in use :::5000` | Another process holds the port. Stop it, or start the API on another port with `PORT=5001 npm start` and set `REACT_APP_API_BASE` to match. |
+| `npm install` fails compiling `sqlite3` | Usually an unsupported Node version. Check `node --version` is 18+; on very new or unusual platforms a prebuilt binary may not exist, so install Node 20 or 22 LTS. |
+| Sign-in rejects the demo passwords | The database was created with demo seeding off. Either use the account made by `npm run create-admin`, or delete `backend/school_data/portal.sqlite` and restart to regenerate the demo data. |
+
 ## Run locally
 
 ```bash
@@ -87,24 +169,42 @@ them to `false` and you get an empty portal instead.
 
 ### Setting up a clean install
 
+**Order matters.** Run `create-admin` *before* ever starting the server normally — a plain
+`npm start` creates the demo accounts on first run, and they would then have to be cleared with
+`npm run reset-db`.
+
 ```bash
-# 1. Backend: start with seeding disabled and create the first real administrator
+# 1. Backend: create the first real administrator, then start with seeding disabled
 cd backend
 npm install
 npm run create-admin       # prompts for name, username and password (never echoed or logged)
 npm run start:clean        # same as npm start, but with SEED_DEMO=false
 
-# 2. Frontend: build without the demo assignments/tests/submissions
+# 2. Frontend: run without the demo assignments/tests/submissions
 cd ../frontend
 npm install
-$env:REACT_APP_SEED_DEMO="false"   # PowerShell; use export on macOS/Linux
-npm start                          # or npm run build for production
 ```
+
+Then start the frontend with the demo flag off:
+
+```bash
+# macOS / Linux
+REACT_APP_SEED_DEMO=false npm start
+
+# Windows PowerShell
+$env:REACT_APP_SEED_DEMO="false"; npm start
+```
+
+For a production build, set the same variable before `npm run build`. It is read at **build
+time**, so a bundle built without it will still contain the demo assignments even if the backend
+is clean.
 
 `npm run create-admin` is the only way in on a clean install, since no accounts exist. It asks for
 the password interactively rather than taking it as an argument, so it never lands in shell history
 or a process listing, and stores only a bcrypt hash. It refuses duplicate usernames, passwords under
 8 characters, and mismatched confirmations, and warns you if a main administrator already exists.
+Both `create-admin` and `reset-db` disable seeding internally, so neither can accidentally create
+demo accounts as a side effect of opening the database.
 
 The **Demo accounts** box on the sign-in page hides itself automatically in clean mode, so the
 demo passwords are never displayed to real users.
@@ -134,12 +234,18 @@ storage → clear, or use a private window.
 
 ### Verified behaviour
 
-| Mode | Result |
+Tested from a pristine copy of the repository (no `node_modules`, no database), installed and run
+exactly as a new user would:
+
+| Check | Result |
 | --- | --- |
-| `SEED_DEMO=false` | 0 users, 0 marks, 0 assessments, 0 audit rows — schema intact |
-| `SEED_DEMO` unset (default) | 53 users, 148 marks — the full demo, unchanged |
-| Clean install sign-in | The account from `create-admin` signs in and gets an empty workspace |
+| `npm install` + `npm run build` in `frontend/` | Compiles successfully — `jszip` installs from the lockfile |
+| `npm install` + `node --test` in `backend/` | 7/7 tests pass |
+| `npm run create-admin` on a fresh database | Creates exactly **one** account, no demo data |
+| `npm run start:clean` | 0 marks, 0 assessments, 1 user — schema intact |
+| Clean-install sign-in | The created account signs in and gets an empty workspace |
 | Demo credentials on a clean install | `mainadmin` / `ChangeMe123!` rejected with **HTTP 401** |
+| Default `npm start` | 53 users, 148 marks — the full demo, unchanged |
 | `REACT_APP_SEED_DEMO=false` build | No demo learner names, assignments or tests in the bundle |
 
 

@@ -6,6 +6,9 @@
 // Tables are emptied in foreign-key-safe order inside a single transaction, so the database is
 // never left half-wiped. The schema itself is preserved.
 const path = require('path');
+// Requiring ../db triggers demo seeding unless disabled — which would re-create the demo accounts
+// this script exists to delete. Always load the database with seeding off.
+process.env.SEED_DEMO = 'false';
 const { run, get, transaction } = require('../db');
 
 const TABLES = ['marks', 'assessments', 'password_resets', 'sessions', 'audit_logs', 'users'];
