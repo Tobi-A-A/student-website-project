@@ -209,7 +209,7 @@ app.post('/admin/marks/:id/status', requireAdmin, async (req, res) => { const ne
 //  3. It refuses to silently overwrite a mark that is already Published or Locked. Those have been
 //     seen by the student, so correcting them must go through the deliberate workflow above.
 app.post('/admin/marking/release', requireAdmin, async (req, res) => {
-  const { studentId, assessmentId, mark, assessmentName, status } = req.body || {};
+  const { studentId, assessmentId, mark, assessmentName, status, override, reason } = req.body || {};
   if (!studentId || !assessmentId) return res.status(400).json({ error: 'studentId and assessmentId are required.' });
   if (typeof mark !== 'number' || !Number.isFinite(mark) || mark < 0 || mark > 100) return res.status(400).json({ error: 'Mark must be a number between 0 and 100.' });
   const target = ['Draft', 'Submitted', 'Approved', 'Published'].includes(status) ? status : 'Published';
@@ -217,10 +217,14 @@ app.post('/admin/marking/release', requireAdmin, async (req, res) => {
   if (!student) return res.status(404).json({ error: `No student exists with ID ${studentId}.` });
   const existing = await get('SELECT id,status,mark FROM marks WHERE student_id=? AND assessment_id=?', [studentId, assessmentId]);
   // Already released with this exact score: treat a retry as success so the outbox can drain.
+  // A different score is refused by default so a queued retry can never silently overwrite a
+  // published result. `override` is the deliberate staff-initiated re-mark: it is allowed, but it
+  // is recorded as its own audit event with the previous score so the correction is traceable.
   if (existing && ['Published', 'Locked'].includes(existing.status)) {
     if (Number(existing.mark) === Number(mark)) return res.json({ ok: true, id: existing.id, status: existing.status, duplicate: true });
-    return res.status(409).json({ error: 'That mark is already published or locked. Unlock it before correcting the score.' });
+    if (!override) return res.status(409).json({ error: 'That mark is already published or locked. Unlock it before correcting the score.' });
   }
+  const remark = Boolean(existing && override && ['Published', 'Locked'].includes(existing.status));
   try {
     const id = await transaction(async () => {
       await run('INSERT INTO assessments(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING', [assessmentId, assessmentName || assessmentId]);
@@ -230,8 +234,8 @@ app.post('/admin/marking/release', requireAdmin, async (req, res) => {
       const row = await get('SELECT id FROM marks WHERE student_id=? AND assessment_id=?', [studentId, assessmentId]);
       return row?.id;
     });
-    await audit(req.user.id, target === 'Published' ? 'marks_published' : 'marks_uploaded', 'mark', id, { studentId, assessmentId, mark, source: 'marking-room' });
-    res.json({ ok: true, id, status: target });
+    await audit(req.user.id, remark ? 'marks_edited' : target === 'Published' ? 'marks_published' : 'marks_uploaded', 'mark', id, remark ? { studentId, assessmentId, previousMark: existing.mark, previousStatus: existing.status, mark, reason: reason || 'Re-marked after release', source: 'marking-room' } : { studentId, assessmentId, mark, source: 'marking-room' });
+    res.json({ ok: true, id, status: target, remark });
   } catch (e) {
     res.status(500).json({ error: `Could not release the mark: ${e.message}` });
   }

@@ -156,6 +156,21 @@ test('marking room release is idempotent and protects already-published marks', 
     // Validation: unknown student and out-of-range marks are rejected before touching the database.
     assert.equal((await release(cookie, { ...payload, studentId: 'NOPE-999', assessmentId: 'ASSIGN-X' })).status, 404);
     assert.equal((await release(cookie, { ...payload, assessmentId: 'ASSIGN-Y', mark: 150 })).status, 400);
+
+    // Staff re-marking a released submission is a deliberate override: it succeeds, replaces the
+    // score, and is recorded as marks_edited with the previous mark so the change stays traceable.
+    const remark = await release(cookie, { ...payload, mark: 91, override: true, reason: 'Criterion 3 was added up wrong' });
+    assert.equal(remark.status, 200);
+    assert.equal((await remark.json()).remark, true);
+    const corrected = await db.get('SELECT mark,status FROM marks WHERE student_id=? AND assessment_id=?', [student.student_id, 'ASSIGN-OFFLINE']);
+    assert.equal(corrected.mark, 91);
+    assert.equal(corrected.status, 'Published');
+    const rows = await db.get('SELECT COUNT(*) AS n FROM marks WHERE student_id=? AND assessment_id=?', [student.student_id, 'ASSIGN-OFFLINE']);
+    assert.equal(rows.n, 1);
+    const logged = await db.get("SELECT action,details FROM audit_logs WHERE action='marks_edited' ORDER BY id DESC LIMIT 1");
+    assert.equal(logged.action, 'marks_edited');
+    assert.match(logged.details, /Criterion 3 was added up wrong/);
+    assert.match(logged.details, /"previousMark":74/);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
