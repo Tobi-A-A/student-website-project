@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import "./App.css";
 
@@ -106,47 +106,59 @@ const hexToRgba = (hex, alpha) => {
 // head. Weighted percentages are derived from the criteria totals, which means two markers working
 // from the same memo arrive at the same score.
 const DEFAULT_MEMOS = {
-  1: { assignmentId: 1, title: "Welcome reflection memo", criteria: [
-    { id: "c1", label: "Answers all three reflection prompts", max: 30, guidance: "Full marks when every prompt has a considered answer, not a one-line response." },
-    { id: "c2", label: "Uses specific personal examples", max: 30, guidance: "Award for concrete examples; halve where examples are generic." },
-    { id: "c3", label: "Structure, spelling and grammar", max: 20, guidance: "Deduct for unstructured writing or repeated errors." },
-    { id: "c4", label: "Submitted as a valid ZIP with the required files", max: 20, guidance: "Full marks when the archive opens and contains the named files." },
-  ] },
-  2: { assignmentId: 2, title: "Science lab report memo", criteria: [
-    { id: "c1", label: "Aim and hypothesis clearly stated", max: 20, guidance: "Both must be present and testable." },
-    { id: "c2", label: "Method is reproducible", max: 25, guidance: "Another student should be able to repeat it exactly." },
-    { id: "c3", label: "Results tabulated with correct units", max: 25, guidance: "Deduct 5 per missing or wrong unit." },
-    { id: "c4", label: "Conclusion refers back to the hypothesis", max: 30, guidance: "Full marks only when the data is used to accept or reject the hypothesis." },
-  ] },
-  3: { assignmentId: 3, title: "Programming project memo", criteria: [
-    { id: "c1", label: "Program compiles and runs without errors", max: 25, guidance: "Zero if it does not run; note the error in feedback." },
-    { id: "c2", label: "Meets every functional requirement in the brief", max: 30, guidance: "Mark each requirement proportionally." },
-    { id: "c3", label: "Code readability, naming and comments", max: 20, guidance: "Award for clear names and comments that explain why, not what." },
-    { id: "c4", label: "Handles invalid input safely", max: 15, guidance: "Test at least one bad input." },
-    { id: "c5", label: "README explains how to run the project", max: 10, guidance: "Must include the exact run command." },
-  ] },
+  1: {
+    assignmentId: 1, title: "Welcome reflection memo", criteria: [
+      { id: "c1", label: "Answers all three reflection prompts", max: 30, guidance: "Full marks when every prompt has a considered answer, not a one-line response." },
+      { id: "c2", label: "Uses specific personal examples", max: 30, guidance: "Award for concrete examples; halve where examples are generic." },
+      { id: "c3", label: "Structure, spelling and grammar", max: 20, guidance: "Deduct for unstructured writing or repeated errors." },
+      { id: "c4", label: "Submitted as a valid ZIP with the required files", max: 20, guidance: "Full marks when the archive opens and contains the named files." },
+    ]
+  },
+  2: {
+    assignmentId: 2, title: "Science lab report memo", criteria: [
+      { id: "c1", label: "Aim and hypothesis clearly stated", max: 20, guidance: "Both must be present and testable." },
+      { id: "c2", label: "Method is reproducible", max: 25, guidance: "Another student should be able to repeat it exactly." },
+      { id: "c3", label: "Results tabulated with correct units", max: 25, guidance: "Deduct 5 per missing or wrong unit." },
+      { id: "c4", label: "Conclusion refers back to the hypothesis", max: 30, guidance: "Full marks only when the data is used to accept or reject the hypothesis." },
+    ]
+  },
+  3: {
+    assignmentId: 3, title: "Programming project memo", criteria: [
+      { id: "c1", label: "Program compiles and runs without errors", max: 25, guidance: "Zero if it does not run; note the error in feedback." },
+      { id: "c2", label: "Meets every functional requirement in the brief", max: 30, guidance: "Mark each requirement proportionally." },
+      { id: "c3", label: "Code readability, naming and comments", max: 20, guidance: "Award for clear names and comments that explain why, not what." },
+      { id: "c4", label: "Handles invalid input safely", max: 15, guidance: "Test at least one bad input." },
+      { id: "c5", label: "README explains how to run the project", max: 10, guidance: "Must include the exact run command." },
+    ]
+  },
 };
 // Demo tests/exams — separate from Assignments because these are auto-marked multiple-choice
 // assessments scoped to a course and year level, rather than uploaded files. Attempts feed the
 // same pass/remediation logic (score vs a configurable passing mark) as the marks workflow.
 const DEFAULT_TESTS = [
-  { id: 1, title: "Intro to Algorithms quiz", subject: "Computer Science", course: "Computer Science", yearLevel: 1, passingMark: 60, durationMinutes: 20, maxAttempts: 2, questions: [
-    { question: "Which data structure uses FIFO order?", options: ["Stack", "Queue", "Tree", "Graph"], correct: 1 },
-    { question: "What is the time complexity of binary search?", options: ["O(n)", "O(n^2)", "O(log n)", "O(1)"], correct: 2 },
-    { question: "Which keyword declares a constant in JavaScript?", options: ["var", "let", "const", "static"], correct: 2 },
-    { question: "What does CPU stand for?", options: ["Central Process Unit", "Central Processing Unit", "Computer Personal Unit", "Central Processor Utility"], correct: 1 },
-  ] },
-  { id: 2, title: "Cell Biology exam", subject: "Biology", course: "Biology", yearLevel: 2, passingMark: 60, durationMinutes: 30, maxAttempts: 2, questions: [
-    { question: "What is the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi apparatus"], correct: 2 },
-    { question: "DNA replication occurs in which phase?", options: ["G1", "S", "G2", "M"], correct: 1 },
-    { question: "What is the basic unit of life?", options: ["Cell", "Atom", "Tissue", "Organ"], correct: 0 },
-    { question: "Which organelle handles photosynthesis?", options: ["Mitochondria", "Chloroplast", "Nucleus", "Vacuole"], correct: 1 },
-  ] },
-  { id: 3, title: "Business fundamentals test", subject: "Business Management", course: "Business Management", yearLevel: 1, passingMark: 60, durationMinutes: 25, maxAttempts: 2, questions: [
-    { question: "What does ROI stand for?", options: ["Rate of Interest", "Return on Investment", "Risk of Insolvency", "Return on Income"], correct: 1 },
-    { question: "A balance sheet reports a company's...", options: ["Revenue only", "Assets, liabilities, and equity", "Cash flow only", "Marketing plan"], correct: 1 },
-    { question: "What is a fixed cost?", options: ["Cost that changes with output", "Cost that stays the same regardless of output", "A one-time cost", "Employee salaries only"], correct: 1 },
-  ] },
+  {
+    id: 1, title: "Intro to Algorithms quiz", subject: "Computer Science", course: "Computer Science", yearLevel: 1, passingMark: 60, durationMinutes: 20, maxAttempts: 2, questions: [
+      { question: "Which data structure uses FIFO order?", options: ["Stack", "Queue", "Tree", "Graph"], correct: 1 },
+      { question: "What is the time complexity of binary search?", options: ["O(n)", "O(n^2)", "O(log n)", "O(1)"], correct: 2 },
+      { question: "Which keyword declares a constant in JavaScript?", options: ["var", "let", "const", "static"], correct: 2 },
+      { question: "What does CPU stand for?", options: ["Central Process Unit", "Central Processing Unit", "Computer Personal Unit", "Central Processor Utility"], correct: 1 },
+    ]
+  },
+  {
+    id: 2, title: "Cell Biology exam", subject: "Biology", course: "Biology", yearLevel: 2, passingMark: 60, durationMinutes: 30, maxAttempts: 2, questions: [
+      { question: "What is the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi apparatus"], correct: 2 },
+      { question: "DNA replication occurs in which phase?", options: ["G1", "S", "G2", "M"], correct: 1 },
+      { question: "What is the basic unit of life?", options: ["Cell", "Atom", "Tissue", "Organ"], correct: 0 },
+      { question: "Which organelle handles photosynthesis?", options: ["Mitochondria", "Chloroplast", "Nucleus", "Vacuole"], correct: 1 },
+    ]
+  },
+  {
+    id: 3, title: "Business fundamentals test", subject: "Business Management", course: "Business Management", yearLevel: 1, passingMark: 60, durationMinutes: 25, maxAttempts: 2, questions: [
+      { question: "What does ROI stand for?", options: ["Rate of Interest", "Return on Investment", "Risk of Insolvency", "Return on Income"], correct: 1 },
+      { question: "A balance sheet reports a company's...", options: ["Revenue only", "Assets, liabilities, and equity", "Cash flow only", "Marketing plan"], correct: 1 },
+      { question: "What is a fixed cost?", options: ["Cost that changes with output", "Cost that stays the same regardless of output", "A one-time cost", "Employee salaries only"], correct: 1 },
+    ]
+  },
 ];
 const DEFAULT_TEST_ATTEMPTS = {};
 const displayDate = () => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(new Date());
@@ -303,7 +315,7 @@ function App() {
         setSqliteDataIfChanged(data);
         setApiConnected(true);
         setApiError("");
-        const dbAccounts = data.users.map((account) => ({ ...account, temporary: false }));
+        const dbAccounts = data.users.map((account) => ({ ...account, temporary: Boolean(account.temporary), }));
         const dbMarks = data.marks.map((mark) => ({ ...mark, score: mark.mark, subject: mark.assessmentId, weighting: 100 }));
         setAccountsIfChanged(dbAccounts);
         setMarksIfChanged(dbMarks);
@@ -397,7 +409,13 @@ function App() {
         {notice && <div className="notice" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
         {apiError && user.role !== "student" && <div className="notice error" role="alert">{apiError}</div>}
         {active === "Overview" && <Overview user={user} assignments={assignments} marks={currentMarks} accounts={accounts} apiConnected={apiConnected} />}
-        {active === "Accounts" && <Accounts accounts={accounts} setAccounts={(v) => persist("portal-accounts", v, setAccounts)} user={user} />}
+        {active === "Accounts" && (
+          <Accounts
+            accounts={accounts}
+            setAccounts={setAccounts}
+            user={user}
+          />
+        )}
         {active === "CSV uploads" && <CsvUploads setNotice={setNotice} marks={marks} setMarks={(v) => persist("portal-marks", v, setMarks)} accounts={accounts} passMark={passMark} />}
         {active === "SQLite data" && <SQLiteData data={sqliteData} connected={apiConnected} />}
         {active === "Courses" && <><Courses accounts={accounts} setAccounts={(v) => persist("portal-accounts", v, setAccounts)} user={user} setUser={setUser} apiConnected={apiConnected} notify={notify} courses={courses} canManage={user.role !== "student"} removeCourse={(name) => { const next = customCourses.filter((course) => course.name !== name); persist("portal-courses", next, setCustomCourses); }} /><CourseManager courses={courses} setCustomCourses={(v) => persist("portal-courses", v, setCustomCourses)} canManage={user.role !== "student"} /></>}
@@ -420,22 +438,65 @@ function Login({ login, setLogin, setAccounts, error, onSubmit, theme, darkMode,
   const [registration, setRegistration] = useState({ name: "", username: "", password: "", studentId: "", course: "" });
   const [registered, setRegistered] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
-  const register = (event) => {
+  const register = async (event) => {
     event.preventDefault();
-    const username = registration.username.trim();
-    if (!registration.name.trim() || !username || !registration.password || !registration.studentId.trim() || !registration.course) {
-      setRegistrationError("Complete every field, including your course, to create your student account."); return;
+
+    const username = registration.username.trim().toLowerCase();
+    const studentId = registration.studentId.trim();
+
+    if (
+      !registration.name.trim() ||
+      !username ||
+      !registration.password ||
+      !studentId ||
+      !registration.course
+    ) {
+      setRegistrationError(
+        "Complete every field, including your course, to create your student account."
+      );
+      return;
     }
-    const accounts = load("portal-accounts", SEED_ACCOUNTS);
-    if (accounts.some((account) => account.username.toLowerCase() === username.toLowerCase())) {
-      setRegistrationError("That username is already in use."); return;
+
+    if (registration.password.length < 8) {
+      setRegistrationError(
+        "Password must be at least 8 characters."
+      );
+      return;
     }
-    if (accounts.some((account) => account.studentId?.toLowerCase() === registration.studentId.trim().toLowerCase())) {
-      setRegistrationError("That student ID is already registered."); return;
+
+    try {
+      const created = await apiRequest("/api/accounts/students", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: registration.name.trim(),
+          username,
+          password: registration.password,
+          studentId,
+          course: registration.course,
+          yearLevel: 1,
+        }),
+      });
+
+      setAccounts((currentAccounts) => [
+        ...currentAccounts,
+        created,
+      ]);
+
+      setRegistrationError("");
+      setRegistered(true);
+
+      setLogin({
+        username: created.username,
+        password: registration.password,
+      });
+    } catch (error) {
+      setRegistrationError(
+        error.message || "Could not create your student account."
+      );
     }
-    const nextAccounts = [...accounts, { ...registration, name: registration.name.trim(), username, studentId: registration.studentId.trim(), role: "student" }];
-    localStorage.setItem("portal-accounts", JSON.stringify(nextAccounts)); setAccounts(nextAccounts);
-    setRegistrationError(""); setRegistered(true); setLogin({ username, password: registration.password });
   };
   // The backend already implements a real, token-based reset (hashed single-use token, one hour
   // expiry). The UI previously only printed a fake confirmation, so a user who genuinely forgot
@@ -483,7 +544,359 @@ function Login({ login, setLogin, setAccounts, error, onSubmit, theme, darkMode,
   const artStyle = theme.backgroundImage
     ? { backgroundImage: `linear-gradient(180deg, ${hexToRgba(accent, 0.55)}, rgba(15,32,28,0.78)), url(${theme.backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : undefined;
-  return <div className={`login-page${darkMode ? " dark-mode" : ""}`} style={{ "--accent": accent, "--portal-font": theme.font || "DM Sans", fontFamily: `${theme.font || "DM Sans"}, sans-serif` }}><div className="login-art" style={artStyle}><span className="brand-mark">{initials(theme.name)}</span><p className="eyebrow">Your campus, connected</p><h1>Make space for<br /><em>what’s next.</em></h1><p>One calm place for teaching, learning and progress.</p></div><div className="login-top-actions"><label className="language-select login-language-toggle"><span className="sr-only">{t("language")}</span><select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label={t("language")}>{LANGUAGES.map((lang) => <option key={lang.code} value={lang.code}>{lang.label}</option>)}</select></label><button className="theme-toggle login-theme-toggle" onClick={() => { const next = !darkMode; setDarkMode(next); localStorage.setItem("portal-dark-mode", JSON.stringify(next)); }} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}>{darkMode ? t("lightMode") : t("darkMode")}</button></div>{registering ?  <form className="login-card" onSubmit={register}><div className="brand dark"><span className="brand-mark">{initials(theme.name)}</span><span>{theme.name}</span></div>{registered ? <><h2>Profile created</h2><p className="muted">Your course and learner details are stored locally in this browser.</p><button className="primary full" type="button" onClick={() => { setRegistering(false); setRegistered(false); }}>{t("signIn")}</button></> : <><h2>Create your account</h2><p className="muted">Register as a new student for this local campus demo.</p><label>Full name<input autoFocus value={registration.name} onChange={(e) => setRegistration({ ...registration, name: e.target.value })} /></label><label>Student ID<input value={registration.studentId} onChange={(e) => setRegistration({ ...registration, studentId: e.target.value })} /></label><label>Course<select required value={registration.course} onChange={(e) => setRegistration({ ...registration, course: e.target.value })}><option value="">Choose your course</option>{COURSES.map(([name]) => <option key={name}>{name}</option>)}</select></label><label>Username<input value={registration.username} onChange={(e) => setRegistration({ ...registration, username: e.target.value })} /></label><label>Password<input type="password" value={registration.password} onChange={(e) => setRegistration({ ...registration, password: e.target.value })} /></label>{registrationError && <p className="error">{registrationError}</p>}<button className="primary full" type="submit">Create account</button><button className="text-button auth-link" type="button" onClick={() => { setRegistering(false); setRegistrationError(""); }}>Already have an account? Sign in</button></>}</form> : forgot ? <form className="login-card" onSubmit={resetStage === "confirm" ? confirmReset : requestReset}><div className="brand dark"><span className="brand-mark">{initials(theme.name)}</span><span>{theme.name}</span></div><h2>{t("forgotPassword")}</h2>{resetStage === "request" && <><p className="muted">Enter the username you sign in with, plus a trusted email address. This local demo prepares the reset without sending external mail.</p><label>Username<input required name="username" autoComplete="username" placeholder="e.g. student" /></label><label>Trusted email<input required type="email" name="email" autoComplete="off" placeholder="you@example.com" /></label></>}{resetStage === "confirm" && <><p className="muted">Your single-use reset token is below. It expires in one hour and can only be used once.</p><p className="reset-token">{resetToken}</p><label>New password<input required type="password" name="password" minLength={8} autoComplete="new-password" placeholder="At least 8 characters" /></label></>}{recoveryMessage && <p className="notice">{recoveryMessage}</p>}{resetError && <p className="error">{resetError}</p>}{resetStage !== "done" && <button className="primary full" type="submit">{resetStage === "confirm" ? "Set new password" : "Prepare reset notification"}</button>}<button className="text-button auth-link" type="button" onClick={closeForgot}>Back to sign in</button></form> : <form className="login-card" onSubmit={onSubmit}><div className="brand dark"><span className="brand-mark">{initials(theme.name)}</span><span>{theme.name}</span></div><h2>{t("welcomeBack")}</h2><p className="muted">{t("signInSubtitle")}</p><label>{t("username")}<input autoFocus value={login.username} onChange={(e) => setLogin({ ...login, username: e.target.value })} /></label><label>{t("password")}<input type="password" value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} /></label>{error && <p className="error">{error}</p>}<button className="primary full auth-submit" type="submit">{t("signIn")}</button><button className="text-button auth-link" type="button" onClick={() => setRegistering(true)}>{t("createAccount")}</button><button className="text-button auth-link" type="button" onClick={() => setForgot(true)}>{t("forgotPassword")}</button>{SEED_DEMO && <div className="demo-box"><strong>{t("demoAccounts")}</strong><span>mainadmin / ChangeMe123!</span><span>admin / Admin123!</span><span>student / Student123!</span></div>}</form>}</div>;
+  return (
+    <div
+      className={`login-page${darkMode ? " dark-mode" : ""}`}
+      style={{
+        "--accent": accent,
+        "--portal-font": theme.font || "DM Sans",
+        fontFamily: `${theme.font || "DM Sans"}, sans-serif`,
+      }}
+    >
+      <div className="login-art" style={artStyle}>
+        <span className="brand-mark">{initials(theme.name)}</span>
+
+        <p className="eyebrow">Your campus, connected</p>
+
+        <h1>
+          Make space for
+          <br />
+          <em>what’s next.</em>
+        </h1>
+
+        <p>One calm place for teaching, learning and progress.</p>
+      </div>
+
+      <div className="login-top-actions">
+        <label className="language-select login-language-toggle">
+          <span className="sr-only">{t("language")}</span>
+
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            aria-label={t("language")}
+          >
+            {LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          className="theme-toggle login-theme-toggle"
+          onClick={() => {
+            const next = !darkMode;
+
+            setDarkMode(next);
+            localStorage.setItem("portal-dark-mode", JSON.stringify(next));
+          }}
+          aria-label={
+            darkMode ? "Switch to light mode" : "Switch to dark mode"
+          }
+        >
+          {darkMode ? t("lightMode") : t("darkMode")}
+        </button>
+      </div>
+
+      {registering ? (
+        <form className="login-card" onSubmit={register}>
+          <div className="brand dark">
+            <span className="brand-mark">{initials(theme.name)}</span>
+            <span>{theme.name}</span>
+          </div>
+
+          {registered ? (
+            <>
+              <h2>Profile created</h2>
+
+              <p className="muted">
+                Your course and learner details are stored locally in this
+                browser.
+              </p>
+
+              <button
+                className="primary full"
+                type="button"
+                onClick={() => {
+                  setRegistering(false);
+                  setRegistered(false);
+                }}
+              >
+                {t("signIn")}
+              </button>
+            </>
+          ) : (
+            <>
+              <h2>Create your account</h2>
+
+              <p className="muted">
+                Register as a new student for this local campus demo.
+              </p>
+
+              <label>
+                Full name
+                <input
+                  autoFocus
+                  value={registration.name}
+                  onChange={(e) =>
+                    setRegistration({
+                      ...registration,
+                      name: e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Student ID
+                <input
+                  value={registration.studentId}
+                  onChange={(e) =>
+                    setRegistration({
+                      ...registration,
+                      studentId: e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Course
+                <select
+                  required
+                  value={registration.course}
+                  onChange={(e) =>
+                    setRegistration({
+                      ...registration,
+                      course: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Choose your course</option>
+
+                  {COURSES.map(([name]) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Username
+                <input
+                  value={registration.username}
+                  onChange={(e) =>
+                    setRegistration({
+                      ...registration,
+                      username: e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={registration.password}
+                  onChange={(e) =>
+                    setRegistration({
+                      ...registration,
+                      password: e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+              {registrationError && (
+                <p className="error">{registrationError}</p>
+              )}
+
+              <button className="primary full" type="submit">
+                Create account
+              </button>
+
+              <button
+                className="text-button auth-link"
+                type="button"
+                onClick={() => {
+                  setRegistering(false);
+                  setRegistrationError("");
+                }}
+              >
+                Already have an account? Sign in
+              </button>
+            </>
+          )}
+        </form>
+      ) : forgot ? (
+        <form
+          className="login-card"
+          onSubmit={
+            resetStage === "confirm" ? confirmReset : requestReset
+          }
+        >
+          <div className="brand dark">
+            <span className="brand-mark">{initials(theme.name)}</span>
+            <span>{theme.name}</span>
+          </div>
+
+          <h2>{t("forgotPassword")}</h2>
+
+          {resetStage === "request" && (
+            <>
+              <p className="muted">
+                Enter the username you sign in with, plus a trusted email
+                address. This local demo prepares the reset without sending
+                external mail.
+              </p>
+
+              <label>
+                Username
+                <input
+                  required
+                  name="username"
+                  autoComplete="username"
+                  placeholder="e.g. student"
+                />
+              </label>
+
+              <label>
+                Trusted email
+                <input
+                  required
+                  type="email"
+                  name="email"
+                  autoComplete="off"
+                  placeholder="you@example.com"
+                />
+              </label>
+            </>
+          )}
+
+          {resetStage === "confirm" && (
+            <>
+              <p className="muted">
+                Your single-use reset token is below. It expires in one hour
+                and can only be used once.
+              </p>
+
+              <p className="reset-token">{resetToken}</p>
+
+              <label>
+                New password
+                <input
+                  required
+                  type="password"
+                  name="password"
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                />
+              </label>
+            </>
+          )}
+
+          {recoveryMessage && (
+            <p className="notice">{recoveryMessage}</p>
+          )}
+
+          {resetError && <p className="error">{resetError}</p>}
+
+          {resetStage !== "done" && (
+            <button className="primary full" type="submit">
+              {resetStage === "confirm"
+                ? "Set new password"
+                : "Prepare reset notification"}
+            </button>
+          )}
+
+          <button
+            className="text-button auth-link"
+            type="button"
+            onClick={closeForgot}
+          >
+            Back to sign in
+          </button>
+        </form>
+      ) : (
+        <form className="login-card" onSubmit={onSubmit}>
+          <div className="brand dark">
+            <span className="brand-mark">{initials(theme.name)}</span>
+            <span>{theme.name}</span>
+          </div>
+
+          <h2>{t("welcomeBack")}</h2>
+
+          <p className="muted">{t("signInSubtitle")}</p>
+
+          <label>
+            {t("username")}
+            <input
+              autoFocus
+              value={login.username}
+              onChange={(e) =>
+                setLogin({
+                  ...login,
+                  username: e.target.value,
+                })
+              }
+            />
+          </label>
+
+          <label>
+            {t("password")}
+            <input
+              type="password"
+              value={login.password}
+              onChange={(e) =>
+                setLogin({
+                  ...login,
+                  password: e.target.value,
+                })
+              }
+            />
+          </label>
+
+          {error && <p className="error">{error}</p>}
+
+          <button
+            className="primary full auth-submit"
+            type="submit"
+          >
+            {t("signIn")}
+          </button>
+
+          <button
+            className="text-button auth-link"
+            type="button"
+            onClick={() => setRegistering(true)}
+          >
+            {t("createAccount")}
+          </button>
+
+          <button
+            className="text-button auth-link"
+            type="button"
+            onClick={() => setForgot(true)}
+          >
+            {t("forgotPassword")}
+          </button>
+
+          {SEED_DEMO && (
+            <div className="demo-box">
+              <strong>{t("demoAccounts")}</strong>
+              <span>mainadmin / ChangeMe123!</span>
+              <span>admin / Admin123!</span>
+              <span>student / Student123!</span>
+            </div>
+          )}
+        </form>
+      )}
+    </div>
+  );
+
 }
 
 function Overview({ user, assignments, marks, accounts, apiConnected }) {
@@ -493,25 +906,376 @@ function Overview({ user, assignments, marks, accounts, apiConnected }) {
   return <><section className="welcome"><div><p className="eyebrow">{displayDate()}</p><h2>Good morning, {user.name.split(" ")[0]}.</h2><p className="muted">Here’s what needs your attention today.</p></div><span className="welcome-shape">✦</span></section><div className="stats">{stats.map(([label, value]) => <div className="stat-card" key={label}><small>{label}</small><strong>{value}</strong><span className="trend">Updated just now</span></div>)}</div><section className="panel"><div className="panel-heading"><div><p className="eyebrow">Next up</p><h3>Upcoming and past assignments</h3></div><span className="count">{assignments.length} total</span></div>{assignments.slice(0, 6).map((a) => <div className={`list-row${isClosed(a) ? " assignment-completed" : ""}`} key={a.id}><div className="file-icon">↗</div><div><strong>{a.title}</strong><small>{a.subject} · Opens {a.start ? new Date(a.start).toLocaleString() : "now"} · Due {a.due}{a.dueTime ? ` at ${a.dueTime}` : ""} · {a.duration || 60} minutes</small></div><span className="pill">{isClosed(a) ? "Completed" : user.role === "student" ? "To do" : "Published"}</span></div>)}</section></>;
 }
 
-function Accounts({ accounts, setAccounts, user }) {
-  const [form, setForm] = useState({ name: "", username: "", password: "", temporary: true, role: "admin" });
-  const add = (e) => { e.preventDefault(); const username = form.username.trim().toLowerCase(); if (!form.name.trim() || !username || !form.password) return; if (accounts.some((account) => account.username.toLowerCase() === username)) return; setAccounts([...accounts, { ...form, name: form.name.trim(), username, role: user.role === "main-admin" ? form.role : "admin" }]); setForm({ name: "", username: "", password: "", temporary: true, role: "admin" }); };
-  const download = (account) => { const studentMarks = load("portal-marks", SEED_MARKS).filter((mark) => mark.studentId === account.studentId); const text = studentMarks.map((mark) => `${mark.subject},${mark.assessmentId || "Assessment"},${mark.score}%,${mark.grade}`).join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([`Subject,Assessment,Score,Grade\n${text}`], { type: "text/csv" })); link.download = `${account.studentId}-marks-summary.csv`; link.click(); };
-  const learners = accounts.filter((a) => a.role === "student");
-  return <div className="account-layout"><section className="panel"><div className="panel-heading"><div><p className="eyebrow">Access control</p><h3>Administrator accounts</h3></div></div>{accounts.filter((a) => a.role !== "student").map((a) => <div className="list-row" key={a.username}><div className="avatar small">{a.name.split(" ").map((p) => p[0]).join("")}</div><div><strong>{a.name}</strong><small>@{a.username} · {a.role === "main-admin" ? "Permanent main account" : a.temporary ? "Temporary admin" : "Permanent admin"}</small></div>{a.role !== "main-admin" && <button className="text-button danger" onClick={() => setAccounts(accounts.filter((item) => item.username !== a.username))}>Delete</button>}</div>)}</section><form className="panel form-panel" onSubmit={add}><p className="eyebrow">New access</p><h3>Add a permanent or temp admin</h3><label>Full name<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label><label>Username<input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label><label>Secure password<input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label><label className="check-row"><input type="checkbox" checked={form.temporary} onChange={(e) => setForm({ ...form, temporary: e.target.checked })} /> Temporary account</label>{user.role === "main-admin" && <label>Role<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="admin">Administrator</option><option value="main-admin">Main administrator</option></select></label>}<button className="primary" type="submit">Create account</button></form><section className="panel"><p className="eyebrow">Learners</p><h3>Student accounts</h3>{learners.map((learner) => <div className="list-row" key={learner.username}><div className="avatar small">{learner.name.split(" ").map((p) => p[0]).join("")}</div><div><strong>{learner.name}</strong><small>{learner.studentId} · {learner.course || "Course not assigned"}</small></div><button className="secondary" onClick={() => download(learner)}>Download marks</button><button className="text-button danger" onClick={() => setAccounts(accounts.filter((item) => item.username !== learner.username))}>Delete</button></div>)}</section></div>;
+function Accounts({ accounts = [], setAccounts, user }) {
+  const [form, setForm] = useState({
+    name: "",
+    username: "",
+    password: "",
+    temporary: true,
+    role: "admin",
+  });
+
+  const [error, setError] = useState("");
+
+  const isMainAdmin = user?.role === "main-admin";
+
+  const updateField = (field, value) => {
+    setForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  };
+
+  const add = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const name = form.name.trim();
+    const username = form.username.trim().toLowerCase();
+    const password = form.password;
+
+    if (!name || !username || !password) {
+      setError("Name, username, and password are required.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    const role =
+      isMainAdmin && form.role === "main-admin"
+        ? "main-admin"
+        : "admin";
+
+    try {
+      const created = await apiRequest("/admin/accounts/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          username,
+          password,
+          role,
+          temporary:
+            role === "main-admin"
+              ? false
+              : Boolean(form.temporary),
+        }),
+      });
+
+      setAccounts((currentAccounts) => [
+        ...currentAccounts,
+        created,
+      ]);
+
+      window.dispatchEvent(new Event("portal-sync-now"));
+
+      setForm({
+        name: "",
+        username: "",
+        password: "",
+        temporary: true,
+        role: "admin",
+      });
+
+      setError("");
+    } catch (error) {
+      setError(
+        error.message || "Could not create administrator."
+      );
+    }
+  };
+
+  const deleteAccount = async (account) => {
+    if (!account?.id) {
+      setError("Invalid account.");
+      return;
+    }
+
+    if (account.role === "main-admin") {
+      setError("The main administrator cannot be deleted.");
+      return;
+    }
+
+    try {
+      await apiRequest(`/admin/accounts/${account.id}`, {
+        method: "DELETE",
+      });
+
+      setAccounts((currentAccounts) =>
+        currentAccounts.filter((item) => item.id !== account.id)
+      );
+
+      setError("");
+    } catch (error) {
+      setError(error.message || "Unable to delete account.");
+    }
+  };
+
+  const learners = accounts.filter(
+    (account) => account.role === "student"
+  );
+
+  const administratorRows = accounts
+    .filter((account) => account.role !== "student")
+    .map((account) =>
+      React.createElement(
+        "div",
+        {
+          className: "list-row",
+          key: account.username,
+        },
+
+        React.createElement(
+          "div",
+          { className: "avatar small" },
+          account.name
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()
+        ),
+
+        React.createElement(
+          "div",
+          null,
+          React.createElement("strong", null, account.name),
+          React.createElement(
+            "small",
+            null,
+            "@",
+            account.username,
+            " · ",
+            account.role === "main-admin"
+              ? "Main administrator"
+              : account.temporary
+                ? "Temporary administrator"
+                : "Permanent administrator"
+          )
+        ),
+
+        account.role !== "main-admin" &&
+        React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "text-button danger",
+            onClick: () => deleteAccount(account),
+          },
+          "Delete"
+        )
+      )
+    );
+
+  const learnerRows = learners.map((learner) =>
+    React.createElement(
+      "div",
+      {
+        className: "list-row",
+        key: learner.username,
+      },
+
+      React.createElement(
+        "div",
+        { className: "avatar small" },
+        learner.name
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase()
+      ),
+
+      React.createElement(
+        "div",
+        null,
+        React.createElement("strong", null, learner.name),
+        React.createElement(
+          "small",
+          null,
+          learner.studentId || "No student ID",
+          " · ",
+          learner.course || "Course not assigned"
+        )
+      ),
+
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "text-button danger",
+          onClick: () => deleteAccount(learner),
+        },
+        "Delete"
+      )
+    )
+  );
+
+  return (
+    <div className="account-layout">
+      <section className="panel">
+        <p className="eyebrow">Access control</p>
+        <h3>Administrator accounts</h3>
+
+        {administratorRows}
+      </section>
+
+      <form className="panel form-panel" onSubmit={add}>
+        <p className="eyebrow">New access</p>
+        <h3>Add a permanent or temporary administrator</h3>
+
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+
+        <label>
+          Full name
+          <input
+            required
+            value={form.name}
+            onChange={(event) =>
+              updateField("name", event.target.value)
+            }
+          />
+        </label>
+
+        <label>
+          Username
+          <input
+            required
+            value={form.username}
+            onChange={(event) =>
+              updateField("username", event.target.value)
+            }
+          />
+        </label>
+
+        <label>
+          Secure password
+          <input
+            required
+            type="password"
+            value={form.password}
+            onChange={(event) =>
+              updateField("password", event.target.value)
+            }
+          />
+        </label>
+
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={form.temporary}
+            onChange={(event) =>
+              updateField("temporary", event.target.checked)
+            }
+          />
+          Temporary administrator
+        </label>
+
+        {isMainAdmin && (
+          <label>
+            Role
+            <select
+              value={form.role}
+              onChange={(event) =>
+                updateField("role", event.target.value)
+              }
+            >
+              <option value="admin">
+                Administrator
+              </option>
+              <option value="main-admin">
+                Main administrator
+              </option>
+            </select>
+          </label>
+        )}
+
+        <button className="primary" type="submit">
+          Create account
+        </button>
+      </form>
+
+      <section className="panel">
+        <p className="eyebrow">Learners</p>
+        <h3>Student accounts</h3>
+
+        {learnerRows}
+      </section>
+    </div>
+  );
 }
 
 function Profile({ user, accounts, setAccounts, setUser }) {
   const [draft, setDraft] = useState({ name: user.name || "", username: user.username || "", email: user.email || "", studentId: user.studentId || "", course: user.course || "" });
   const [message, setMessage] = useState("");
-  const save = (event) => {
+  const save = async (event) => {
     event.preventDefault();
+    setMessage("");
+
+    const name = draft.name.trim();
     const username = draft.username.trim().toLowerCase();
-    if (!draft.name.trim() || !username) return setMessage("Name and username are required.");
-    if (accounts.some((account) => account.username.toLowerCase() === username && account.username !== user.username)) return setMessage("That username is already in use.");
-    if (draft.studentId && accounts.some((account) => account.studentId?.toLowerCase() === draft.studentId.trim().toLowerCase() && account.username !== user.username)) return setMessage("That student ID is already in use.");
-    const updated = { ...user, ...draft, name: draft.name.trim(), username, studentId: draft.studentId.trim() };
-    setAccounts(accounts.map((account) => account.username === user.username ? updated : account)); setUser(updated); setMessage("Profile saved locally.");
+    const studentId = draft.studentId.trim();
+
+    if (!name || !username) {
+      setMessage("Name and username are required.");
+      return;
+    }
+
+    try {
+      const updated = await apiRequest("/api/accounts/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          username,
+          studentId:
+            user.role === "student"
+              ? studentId
+              : null,
+        }),
+      });
+
+      setUser(updated);
+
+      setAccounts((currentAccounts) =>
+        currentAccounts.map((account) =>
+          account.id === updated.id
+            ? { ...account, ...updated }
+            : account
+        )
+      );
+
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        name: updated.name || "",
+        username: updated.username || "",
+        studentId: updated.studentId || "",
+        course: updated.course || "",
+      }));
+
+      window.dispatchEvent(
+        new Event("portal-sync-now")
+      );
+
+      setMessage("Profile saved to SQLite.");
+    } catch (error) {
+      setMessage(
+        error.message || "Could not save your profile."
+      );
+    }
   };
   return <form className="panel profile-panel" onSubmit={save}><p className="eyebrow">Your information</p><h3>View profile</h3><p className="muted">Update details recorded by the school. Changes are stored in browser localStorage for this demo.</p><label>Full name<input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label><label>Username<input required value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} /></label><label>Email<input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} /></label>{user.role === "student" && <><label>Student ID<input value={draft.studentId} onChange={(e) => setDraft({ ...draft, studentId: e.target.value })} /></label><label>Course<input value={draft.course} onChange={(e) => setDraft({ ...draft, course: e.target.value })} /></label></>}<button className="primary" type="submit">Save profile</button>{message && <p className="notice" role="status">{message}</p>}</form>;
 }
@@ -556,13 +1320,38 @@ function Assignments({ user, assignments, setAssignments, submissions, setSubmis
   const archivedAssignments = canManage ? [] : targeted.filter((assignment) => !isCurrentYear(assignment));
 
   // --- Deadline / missed-submission warnings -------------------------------------------------
-  const deadlineOf = (assignment) => (assignment.due ? new Date(`${assignment.due}T${assignment.dueTime || "23:59"}`) : null);
-  const hoursUntilDue = (assignment) => { const deadline = deadlineOf(assignment); return deadline ? (deadline - Date.now()) / 3600000 : null; };
+  const deadlineOf = (assignment) =>
+    assignment.due
+      ? new Date(`${assignment.due}T${assignment.dueTime || "23:59"}`)
+      : null;
+
+  const hoursUntilDue = (assignment) => {
+    const deadline = deadlineOf(assignment);
+    return deadline
+      ? (deadline.getTime() - Date.now()) / 3600000
+      : null;
+  };
+
   // "Missed" means the deadline (including any extra time staff already granted by moving the
   // due date) has passed with nothing uploaded — that is what triggers remediation.
-  const isMissed = (assignment) => { const deadline = deadlineOf(assignment); return Boolean(deadline && deadline < new Date() && !submissions[`${assignment.id}-${user.username}`]); };
-  const isAtRisk = (assignment) => { const hours = hoursUntilDue(assignment); return hours !== null && hours > 0 && hours <= 72 && !submissions[`${assignment.id}-${user.username}`]; };
+  const isMissed = (assignment) => {
+    const deadline = deadlineOf(assignment);
+    return Boolean(
+      deadline &&
+      deadline < new Date() &&
+      !submissions[`${assignment.id}-${user.username}`]
+    );
+  };
 
+  const isAtRisk = (assignment) => {
+    const hours = hoursUntilDue(assignment);
+    return (
+      hours !== null &&
+      hours > 0 &&
+      hours <= 72 &&
+      !submissions[`${assignment.id}-${user.username}`]
+    );
+  };
   // Raise a one-off in-portal notification the first time a learner opens the page after a
   // deadline has lapsed with nothing submitted. The ids of assignments already warned about are
   // remembered per account so the learner is not re-notified on every visit.
@@ -638,11 +1427,121 @@ function Assignments({ user, assignments, setAssignments, submissions, setSubmis
   const closeSubmission = (submission) => { const key = `${submission.assignmentId}-${submission.studentUsername}`; setSubmissions({ ...submissions, [key]: { ...submission, closed: true, closedAt: new Date().toISOString() } }); setNotice(`Submission closed for ${submission.studentName}.`); };
   const saveMark = (submission, value) => { const score = Number(value); if (!Number.isFinite(score) || score < 0 || score > 100) return setNotice("Final marks must be between 0 and 100."); const key = `${submission.assignmentId}-${submission.studentUsername}`; const publishedAt = new Date().toISOString(); setSubmissions({ ...submissions, [key]: { ...submission, mark: score, markPublishedAt: publishedAt, remediationOpen: score < passMark } }); const existing = marks.find((mark) => mark.studentId === submission.studentId && mark.assessmentId === `ASSIGN-${submission.assignmentId}`); const result = { studentId: submission.studentId, assessmentId: `ASSIGN-${submission.assignmentId}`, student: submission.studentName, subject: submission.subject || submission.assignmentTitle, score, weighting: 100, grade: gradeFor(score, passMark), status: "Published", publishedAt: publishedAt.slice(0, 10), feedback: score < passMark ? `Remediation is required below ${passMark}%.` : `Assignment completed successfully at the ${passMark}% passing threshold.`, submissionFile: submission.fileName }; setMarks(existing ? marks.map((mark) => mark === existing ? { ...mark, ...result } : mark) : [...marks, result]); setNotice(score < passMark ? `Remediation is available to ${submission.studentName}.` : `Final mark ${score}% sent to ${submission.studentName}'s profile.`); };
   const uploadMarkedFile = (submission, file) => { if (!file) return; if (!/\.zip$/i.test(file.name) || file.size > 25 * 1024 * 1024) return setNotice("Marked feedback must be a ZIP file up to 25 MB."); const key = `${submission.assignmentId}-${submission.studentUsername}`; setSubmissions({ ...submissions, [key]: { ...submission, markedFileName: file.name, markedFileUrl: URL.createObjectURL(file), markedUploadedAt: new Date().toISOString() } }); setNotice(`Marked ZIP uploaded for ${submission.studentName}.`); };
-  const modifyAssignment = (event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const replacement = data.get("file"); const updated = { ...editingAssignment, title: String(data.get("title")).trim(), subject: String(data.get("subject")).trim(), course: String(data.get("course") || "").trim(), yearLevel: Number(data.get("yearLevel")) || null, academicYear: Number(data.get("academicYear")) || CURRENT_ACADEMIC_YEAR, term: String(data.get("term") || "").trim(), start: data.get("start"), due: data.get("due"), dueTime: data.get("dueTime"), duration: Number(data.get("duration")) || 60 }; if (replacement?.name) { updated.file = replacement.name; updated.url = URL.createObjectURL(replacement); } setAssignments(assignments.map((assignment) => assignment.id === updated.id ? updated : assignment)); setEditingAssignment(null); setNotice(`Assignment updated. It is now shown to ${updated.course || "all courses"}${updated.yearLevel ? `, year ${updated.yearLevel}` : ", all years"}.`); };
+  const modifyAssignment = (event) => {
+    event.preventDefault();
+
+    const data = new FormData(event.currentTarget);
+    const replacement = data.get("file");
+
+    const updated = {
+      ...editingAssignment,
+      title: String(data.get("title") || "").trim(),
+      subject: String(data.get("subject") || "").trim(),
+      course: String(data.get("course") || "").trim(),
+      yearLevel: Number(data.get("yearLevel")) || null,
+      academicYear:
+        Number(data.get("academicYear")) || CURRENT_ACADEMIC_YEAR,
+      term: String(data.get("term") || "").trim(),
+      start: String(data.get("start") || ""),
+      due: String(data.get("due") || ""),
+      dueTime: String(data.get("dueTime") || ""),
+      duration: Number(data.get("duration")) || 60,
+    };
+
+    if (replacement instanceof File && replacement.name) {
+      updated.file = replacement.name;
+      updated.url = URL.createObjectURL(replacement);
+    }
+
+    setAssignments(
+      assignments.map((assignment) =>
+        assignment.id === updated.id ? updated : assignment
+      )
+    );
+
+    setEditingAssignment(null);
+
+    setNotice(
+      `Assignment updated. It is now shown to ${updated.course || "all courses"
+      }${updated.yearLevel ? `, year ${updated.yearLevel}` : ", all years"}.`
+    );
+  };
   const toggleCompleted = (assignment) => { setAssignments(assignments.map((item) => item.id === assignment.id ? { ...item, completed: !item.completed } : item)); setNotice(assignment.completed ? "Assignment reopened for students." : "Assignment marked completed; new student submissions are closed."); };
   const deleteAssignment = (assignment) => { if (!window.confirm(`Delete “${assignment.title}” and its local submission records?`)) return; setAssignments(assignments.filter((item) => item.id !== assignment.id)); const next = Object.fromEntries(Object.entries(submissions).filter(([, submission]) => submission.assignmentId !== assignment.id)); setSubmissions(next); setNotice("Assignment deleted."); };
   const downloadMark = (submission) => { const result = `<html><body><h1>Final assignment result</h1><p>Student: ${submission.studentName}</p><p>Assignment: ${submission.assignmentTitle}</p><p>Submitted file: ${submission.fileName}</p><h2>Final mark: ${submission.mark}%</h2><p>${submission.mark < passMark ? `Remediation required below ${passMark}%.` : `Passing requirement met at ${passMark}%.`}</p><p>Published: ${new Date(submission.markPublishedAt).toLocaleString()}</p></body></html>`; const popup = window.open("", "_blank"); if (!popup) return setNotice("Allow pop-ups to print the final mark as a PDF."); popup.document.write(result); popup.document.close(); popup.focus(); popup.print(); };
-  const addAssignment = (e) => { e.preventDefault(); const data = new FormData(e.currentTarget); const file = data.get("file"); const title = String(data.get("title")).trim(); const subject = String(data.get("subject")).trim(); const course = String(data.get("course") || "").trim(); const yearLevel = Number(data.get("yearLevel")) || null; const academicYear = Number(data.get("academicYear")) || CURRENT_ACADEMIC_YEAR; const term = String(data.get("term") || "").trim(); if (!file?.name) return; if (assignments.some((assignment) => assignment.title.toLowerCase() === title.toLowerCase() && assignment.subject.toLowerCase() === subject.toLowerCase() && (assignment.course || "") === course && (assignment.yearLevel || null) === yearLevel && (assignment.academicYear || CURRENT_ACADEMIC_YEAR) === academicYear)) { setNotice("That assignment already exists for this course, year of study and academic year."); return; } const audience = accounts.filter((account) => account.role === "student" && (!course || account.course === course) && (!yearLevel || Number(account.yearLevel) === yearLevel)).length; setAssignments([{ id: Date.now(), title, subject, course, yearLevel, academicYear, term, start: data.get("start"), due: data.get("due"), dueTime: data.get("dueTime"), duration: Number(data.get("duration")) || 60, file: file.name, url: URL.createObjectURL(file), owner: user.name }, ...assignments]); e.currentTarget.reset(); setNotice(`Assignment published to ${course || "all courses"}${yearLevel ? `, year ${yearLevel}` : ", all years"} — ${audience} learner(s) will see it.`); };
+  const addAssignment = (e) => {
+    e.preventDefault();
+
+    const data = new FormData(e.currentTarget);
+    const file = data.get("file");
+
+    if (!(file instanceof File) || !file.name) {
+      setNotice("Please select an assignment file.");
+      return;
+    }
+
+    const title = String(data.get("title") || "").trim();
+    const subject = String(data.get("subject") || "").trim();
+    const course = String(data.get("course") || "").trim();
+    const yearLevel = Number(data.get("yearLevel")) || null;
+    const academicYear =
+      Number(data.get("academicYear")) || CURRENT_ACADEMIC_YEAR;
+    const term = String(data.get("term") || "").trim();
+
+    if (!title || !subject) {
+      setNotice("Title and subject are required.");
+      return;
+    }
+
+    if (
+      assignments.some(
+        (assignment) =>
+          assignment.title.toLowerCase() === title.toLowerCase() &&
+          assignment.subject.toLowerCase() === subject.toLowerCase() &&
+          (assignment.course || "") === course &&
+          (assignment.yearLevel || null) === yearLevel &&
+          (assignment.academicYear || CURRENT_ACADEMIC_YEAR) === academicYear
+      )
+    ) {
+      setNotice(
+        "That assignment already exists for this course, year of study and academic year."
+      );
+      return;
+    }
+    const audience = accounts.filter(
+      (account) =>
+        account.role === "student" &&
+        (!course || account.course === course) &&
+        (!yearLevel || Number(account.yearLevel) === yearLevel)
+    ).length;
+
+    setAssignments([
+      {
+        id: Date.now(),
+        title,
+        subject,
+        course,
+        yearLevel,
+        academicYear,
+        term,
+        start: String(data.get("start") || ""),
+        due: String(data.get("due") || ""),
+        dueTime: String(data.get("dueTime") || ""),
+        duration: Number(data.get("duration")) || 60,
+        file: file.name,
+        url: URL.createObjectURL(file),
+        owner: user.name,
+      },
+      ...assignments,
+    ]);
+
+    e.currentTarget.reset();
+
+    setNotice(
+      `Assignment published to ${course || "all courses"
+      }${yearLevel ? `, year ${yearLevel}` : ", all years"} — ${audience} learner(s) will see it.`
+    );
+  };
   const ownSubmission = (assignment) => submissions[`${assignment.id}-${user.username}`];
   const resultForSubmission = (submission) => marks.find((mark) => mark.studentId === submission.studentId && mark.assessmentId === `ASSIGN-${submission.assignmentId}`);
   // A single consolidated, searchable/filterable table of every submission across all
@@ -661,7 +1560,516 @@ function Assignments({ user, assignments, setAssignments, submissions, setSubmis
   });
   const submissionCourses = [...new Set(allSubmissions.map((s) => s.course).filter(Boolean))];
   const submissionYears = [...new Set(allSubmissions.map((s) => s.yearLevel).filter(Boolean))].sort();
-  return <><div className="two-col"><section className="panel"><div className="panel-heading"><div><p className="eyebrow">Shared resources</p><h3>{canManage ? "Assignments and submissions" : "Your assignments"}</h3></div></div>{!canManage && <p className="muted course-scope">Showing work for <strong>{user.course || "your course"}</strong>{user.yearLevel ? ` · Year ${user.yearLevel}` : ""}. Change your course or year on the Courses page and this list updates automatically.</p>}{!canManage && missedIds.length > 0 && <div className="missed-banner" role="alert"><strong>{missedIds.length} assignment(s) missed.</strong> You were given the full submission window (plus any extra time your lecturer allowed) and nothing was uploaded, so these now go to remediation. Speak to your lecturer to book your remediation attempt.</div>}{currentAssignments.map((a) => { const own = ownSubmission(a); const ownResult = own ? resultForSubmission(own) : null; const related = Object.values(submissions).filter((submission) => submission.assignmentId === a.id); const isPastDue = a.due && new Date(`${a.due}T${a.dueTime || "23:59"}`) < new Date(); const isClosed = a.completed || isPastDue; const remediationOpen = own?.mark !== undefined && own.mark < passMark; return <div className={`list-row assignment-row${isClosed ? " assignment-completed" : ""}`} key={a.id}><div className="file-icon">↗</div><div><strong>{a.title}</strong>  <small>{a.file} · {a.course || "All courses"}{a.yearLevel ? ` · Year ${a.yearLevel}` : " · All years"} · Opens {a.start ? new Date(a.start).toLocaleString() : "now"} · Ends {a.due}{a.dueTime ? ` at ${a.dueTime}` : ""} · {a.duration || 60} minutes · {isClosed ? "Completed / closed" : "Open"}</small>  {isMissed(a) && <small className="warning-text missed-warning">Missed — no submission was uploaded before the deadline. Extra time was already allowed, so this result goes to remediation.</small>}{isAtRisk(a) && <small className="warning-text">Due in under {Math.max(1, Math.ceil(hoursUntilDue(a)))} hour(s) and nothing is uploaded yet — missing the deadline means remediation.</small>}{own && <small className="submission">Submitted: {own.fileName} · {own.completed ? "Completed — marks will be given once marked" : "Awaiting review"}{own.mark !== undefined ? ` · Final mark: ${own.mark}%` : ""}{ownResult && ` · ${ownResult.grade === "R" ? `R — remediation required${ownResult.remediation?.date ? ` on ${ownResult.remediation.date}` : ""}${ownResult.remediation?.time ? ` at ${ownResult.remediation.time}` : ""}` : `Grade ${ownResult.grade}`}`}</small>}{canManage && related.length > 0 && <small className="submission">{related.length} submission(s) — see the submissions table below to review, mark, or download them.</small>}{canManage && related.length > 1 && <button className="secondary bulk-download" onClick={() => downloadAllSubmissions(a, related)}>Download all {related.length} submissions (ZIP)</button>}{!isClosed && <button className="secondary" onClick={() => download(a)}>Download assignment</button>}{!canManage && own?.markedFileUrl && <button className="secondary" onClick={() => downloadSubmission({ fileUrl: own.markedFileUrl, fileName: own.markedFileName })}>Download marked ZIP</button>}{canManage && <><button className="secondary" onClick={() => setEditingAssignment(a)}>Modify</button>  <button className="secondary" onClick={() => toggleCompleted(a)}>{a.completed ? "Reopen" : "Mark completed"}</button><button className="text-button danger" onClick={() => deleteAssignment(a)}>Delete</button></>}{!canManage && !own?.closed && ((!a.completed && !isPastDue) || remediationOpen) && <><div className="conduct-box"><span>Code of conduct: by submitting, I confirm this work is my own and complies with the academic integrity policy.</span><label><input type="checkbox" checked={agreedFor(a.id)} onChange={(e) => setAgreedFor(a.id, e.target.checked)} /> I acknowledge this is my own work</label></div><label className="secondary upload-button">Upload ZIP folder<input type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={(e) => submit(a, e.target.files[0])} /></label></>}{!canManage && own && !own.closed && <button className="text-button danger" onClick={() => removeSubmission(a)}>Remove file</button>}</div></div>; })}{selected && <div className="download-note">“{selected.file}” is ready locally. Closed assignments hide the pre-made file; staff can still download student submissions and upload marked ZIP feedback locally.</div>}{!canManage && archivedAssignments.length > 0 && <div className="archive-block"><button className="text-button archive-toggle" onClick={() => setShowArchive(!showArchive)}>{showArchive ? "Hide" : "Show"} previous years of {user.course || "your course"} ({archivedAssignments.length})</button>{showArchive && <div className="archive-list">{archivedAssignments.map((a) => { const own = ownSubmission(a); const ownResult = own ? resultForSubmission(own) : null; return <div className="list-row archive-row" key={a.id}><div className="file-icon">🗄</div><div><strong>{a.title}</strong><small>{a.subject} · {a.academicYear} · {a.term || "—"} · Year {a.yearLevel || "—"} of {a.course || "your course"}</small><small className="submission">{own ? `Submitted ${own.fileName}${own.mark !== undefined ? ` · Final mark ${own.mark}%` : ""}` : "No submission was recorded for this assignment."}{ownResult ? ` · Grade ${ownResult.grade}` : ""}</small>{own?.markedFileUrl && <button className="secondary" onClick={() => downloadSubmission({ fileUrl: own.markedFileUrl, fileName: own.markedFileName })}>Download marked ZIP</button>}</div></div>; })}</div>}</div>}</section>{canManage && (editingAssignment ? <form className="panel form-panel" onSubmit={modifyAssignment}><p className="eyebrow">Edit assignment</p><h3>Modify for students</h3><label>Title<input name="title" required defaultValue={editingAssignment.title} /></label>  <label>Subject<input name="subject" required defaultValue={editingAssignment.subject} /></label><label>Course<select name="course" defaultValue={editingAssignment.course || ""}><option value="">All courses</option>{courses.map(([name]) => <option key={name} value={name}>{name}</option>)}</select></label><label>Year of study<select name="yearLevel" defaultValue={editingAssignment.yearLevel || ""}><option value="">All years</option>{[1, 2, 3, 4, 5, 6].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></label><label>Academic year<input name="academicYear" type="number" min="2000" max="2100" defaultValue={editingAssignment.academicYear || CURRENT_ACADEMIC_YEAR} /></label><label>Term or semester<input name="term" defaultValue={editingAssignment.term || ""} placeholder="e.g. Term 3 / Semester 2" /></label><label>Replace assignment file<input name="file" type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png,.zip" /></label><label>Start date and time<input name="start" required type="datetime-local" defaultValue={editingAssignment.start} /></label><label>End date<input name="due" required type="date" defaultValue={editingAssignment.due} /></label><label>End time<input name="dueTime" required type="time" defaultValue={editingAssignment.dueTime || "23:59"} /></label><label>Duration (minutes)<input name="duration" required type="number" min="1" defaultValue={editingAssignment.duration || 60} /></label><button className="primary" type="submit">Save changes</button><button className="text-button auth-link" type="button" onClick={() => setEditingAssignment(null)}>Cancel</button></form> : <form className="panel form-panel" onSubmit={addAssignment}><p className="eyebrow">Publish work</p><h3>Schedule an assignment or test</h3><label>Title<input name="title" required placeholder="e.g. Week 3 essay" /></label><label>Subject<input name="subject" required placeholder="e.g. History" /></label><label>Course<select name="course" defaultValue=""><option value="">All courses</option>{courses.map(([name]) => <option key={name} value={name}>{name}</option>)}</select><small className="muted">Only learners enrolled on this course will see the assignment.</small></label><label>Year of study<select name="yearLevel" defaultValue=""><option value="">All years</option>{[1, 2, 3, 4, 5, 6].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></label><label>Academic year<input name="academicYear" type="number" min="2000" max="2100" defaultValue={CURRENT_ACADEMIC_YEAR} /></label><label>Term or semester<input name="term" placeholder="e.g. Term 3 / Semester 2" /></label><label>Start date and time<input name="start" required type="datetime-local" /></label><label>End date<input name="due" required type="date" /></label><label>End time<input name="dueTime" required type="time" defaultValue="23:59" /></label><label>Duration (minutes)<input name="duration" required type="number" min="1" defaultValue="60" /></label><label className="file-drop">Choose any file<input name="file" required type="file" /></label><button className="primary" type="submit">Publish scheduled work</button></form>)}</div>
+  return <>
+    <div className="two-col">
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Shared resources</p>
+            <h3>
+              {canManage ? "Assignments and submissions" : "Your assignments"}
+            </h3>
+          </div>
+        </div>
+
+        {!canManage && (
+          <p className="muted course-scope">
+            Showing work for <strong>{user.course || "your course"}</strong>
+            {user.yearLevel ? ` · Year ${user.yearLevel}` : ""}. Change your
+            course or year on the Courses page and this list updates automatically.
+          </p>
+        )}
+
+        {!canManage && missedIds.length > 0 && (
+          <div className="missed-banner" role="alert">
+            <strong>{missedIds.length} assignment(s) missed.</strong> You were
+            given the full submission window (plus any extra time your lecturer
+            allowed) and nothing was uploaded, so these now go to remediation.
+            Speak to your lecturer to book your remediation attempt.
+          </div>
+        )}
+
+        {currentAssignments.map((a) => {
+          const own = ownSubmission(a);
+          const ownResult = own ? resultForSubmission(own) : null;
+          const related = Object.values(submissions).filter(
+            (submission) => submission.assignmentId === a.id,
+          );
+
+          const isPastDue =
+            a.due &&
+            new Date(`${a.due}T${a.dueTime || "23:59"}`) < new Date();
+
+          const isClosed = a.completed || isPastDue;
+          const remediationOpen =
+            own?.mark !== undefined && own.mark < passMark;
+
+          return (
+            <div
+              className={`list-row assignment-row${isClosed ? " assignment-completed" : ""
+                }`}
+              key={a.id}
+            >
+              <div className="file-icon">↗</div>
+
+              <div>
+                <strong>{a.title}</strong>
+
+                <small>
+                  {a.file} · {a.course || "All courses"}
+                  {a.yearLevel ? ` · Year ${a.yearLevel}` : " · All years"} · Opens{" "}
+                  {a.start ? new Date(a.start).toLocaleString() : "now"} · Ends{" "}
+                  {a.due}
+                  {a.dueTime ? ` at ${a.dueTime}` : ""} · {a.duration || 60}{" "}
+                  minutes · {isClosed ? "Completed / closed" : "Open"}
+                </small>
+
+                {isMissed(a) && (
+                  <small className="warning-text missed-warning">
+                    Missed — no submission was uploaded before the deadline. Extra
+                    time was already allowed, so this result goes to remediation.
+                  </small>
+                )}
+
+                {isAtRisk(a) && (
+                  <small className="warning-text">
+                    Due in under {Math.max(1, Math.ceil(hoursUntilDue(a)))} hour(s)
+                    and nothing is uploaded yet — missing the deadline means
+                    remediation.
+                  </small>
+                )}
+
+                {own && (
+                  <small className="submission">
+                    Submitted: {own.fileName} ·{" "}
+                    {own.completed
+                      ? "Completed — marks will be given once marked"
+                      : "Awaiting review"}
+                    {own.mark !== undefined ? ` · Final mark: ${own.mark}%` : ""}
+                    {ownResult &&
+                      (ownResult.grade === "R"
+                        ? ` · R — remediation required${ownResult.remediation?.date
+                          ? ` on ${ownResult.remediation.date}`
+                          : ""
+                        }${ownResult.remediation?.time
+                          ? ` at ${ownResult.remediation.time}`
+                          : ""
+                        }`
+                        : ` · Grade ${ownResult.grade}`)}
+                  </small>
+                )}
+
+                {canManage && related.length > 0 && (
+                  <small className="submission">
+                    {related.length} submission(s) — see the submissions table
+                    below to review, mark, or download them.
+                  </small>
+                )}
+
+                {canManage && related.length > 1 && (
+                  <button
+                    className="secondary bulk-download"
+                    onClick={() => downloadAllSubmissions(a, related)}
+                  >
+                    Download all {related.length} submissions (ZIP)
+                  </button>
+                )}
+
+                {!isClosed && (
+                  <button className="secondary" onClick={() => download(a)}>
+                    Download assignment
+                  </button>
+                )}
+
+                {!canManage && own?.markedFileUrl && (
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      downloadSubmission({
+                        fileUrl: own.markedFileUrl,
+                        fileName: own.markedFileName,
+                      })
+                    }
+                  >
+                    Download marked ZIP
+                  </button>
+                )}
+
+                {canManage && (
+                  <>
+                    <button
+                      className="secondary"
+                      onClick={() => setEditingAssignment(a)}
+                    >
+                      Modify
+                    </button>
+
+                    <button
+                      className="secondary"
+                      onClick={() => toggleCompleted(a)}
+                    >
+                      {a.completed ? "Reopen" : "Mark completed"}
+                    </button>
+
+                    <button
+                      className="text-button danger"
+                      onClick={() => deleteAssignment(a)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+
+                {!canManage &&
+                  !own?.closed &&
+                  ((!a.completed && !isPastDue) || remediationOpen) && (
+                    <>
+                      <div className="conduct-box">
+                        <span>
+                          Code of conduct: by submitting, I confirm this work is my
+                          own and complies with the academic integrity policy.
+                        </span>
+
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={agreedFor(a.id)}
+                            onChange={(e) =>
+                              setAgreedFor(a.id, e.target.checked)
+                            }
+                          />{" "}
+                          I acknowledge this is my own work
+                        </label>
+                      </div>
+
+                      <label className="secondary upload-button">
+                        Upload ZIP folder
+                        <input
+                          type="file"
+                          accept=".zip,application/zip,application/x-zip-compressed"
+                          onChange={(e) => submit(a, e.target.files[0])}
+                        />
+                      </label>
+                    </>
+                  )}
+
+                {!canManage && own && !own.closed && (
+                  <button
+                    className="text-button danger"
+                    onClick={() => removeSubmission(a)}
+                  >
+                    Remove file
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {selected && (
+          <div className="download-note">
+            “{selected.file}” is ready locally. Closed assignments hide the
+            pre-made file; staff can still download student submissions and upload
+            marked ZIP feedback locally.
+          </div>
+        )}
+
+        {!canManage && archivedAssignments.length > 0 && (
+          <div className="archive-block">
+            <button
+              className="text-button archive-toggle"
+              onClick={() => setShowArchive(!showArchive)}
+            >
+              {showArchive ? "Hide" : "Show"} previous years of{" "}
+              {user.course || "your course"} ({archivedAssignments.length})
+            </button>
+
+            {showArchive && (
+              <div className="archive-list">
+                {archivedAssignments.map((a) => {
+                  const own = ownSubmission(a);
+                  const ownResult = own ? resultForSubmission(own) : null;
+
+                  return (
+                    <div className="list-row archive-row" key={a.id}>
+                      <div className="file-icon">🗄</div>
+
+                      <div>
+                        <strong>{a.title}</strong>
+
+                        <small>
+                          {a.subject} · {a.academicYear} · {a.term || "—"} · Year{" "}
+                          {a.yearLevel || "—"} of {a.course || "your course"}
+                        </small>
+
+                        <small className="submission">
+                          {own
+                            ? `Submitted ${own.fileName}${own.mark !== undefined
+                              ? ` · Final mark ${own.mark}%`
+                              : ""
+                            }`
+                            : "No submission was recorded for this assignment."}
+                          {ownResult ? ` · Grade ${ownResult.grade}` : ""}
+                        </small>
+
+                        {own?.markedFileUrl && (
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              downloadSubmission({
+                                fileUrl: own.markedFileUrl,
+                                fileName: own.markedFileName,
+                              })
+                            }
+                          >
+                            Download marked ZIP
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {canManage &&
+        (editingAssignment ? (
+          <form className="panel form-panel" onSubmit={modifyAssignment}>
+            <p className="eyebrow">Edit assignment</p>
+            <h3>Modify for students</h3>
+
+            <label>
+              Title
+              <input
+                name="title"
+                required
+                defaultValue={editingAssignment.title}
+              />
+            </label>
+
+            <label>
+              Subject
+              <input
+                name="subject"
+                required
+                defaultValue={editingAssignment.subject}
+              />
+            </label>
+
+            <label>
+              Course
+              <select
+                name="course"
+                defaultValue={editingAssignment.course || ""}
+              >
+                <option value="">All courses</option>
+                {courses.map(([name]) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Year of study
+              <select
+                name="yearLevel"
+                defaultValue={editingAssignment.yearLevel || ""}
+              >
+                <option value="">All years</option>
+                {[1, 2, 3, 4, 5, 6].map((year) => (
+                  <option key={year} value={year}>
+                    Year {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Academic year
+              <input
+                name="academicYear"
+                type="number"
+                min="2000"
+                max="2100"
+                defaultValue={
+                  editingAssignment.academicYear || CURRENT_ACADEMIC_YEAR
+                }
+              />
+            </label>
+
+            <label>
+              Term or semester
+              <input
+                name="term"
+                defaultValue={editingAssignment.term || ""}
+                placeholder="e.g. Term 3 / Semester 2"
+              />
+            </label>
+
+            <label>
+              Replace assignment file
+              <input
+                name="file"
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png,.zip"
+              />
+            </label>
+
+            <label>
+              Start date and time
+              <input
+                name="start"
+                required
+                type="datetime-local"
+                defaultValue={editingAssignment.start}
+              />
+            </label>
+
+            <label>
+              End date
+              <input
+                name="due"
+                required
+                type="date"
+                defaultValue={editingAssignment.due}
+              />
+            </label>
+
+            <label>
+              End time
+              <input
+                name="dueTime"
+                required
+                type="time"
+                defaultValue={editingAssignment.dueTime || "23:59"}
+              />
+            </label>
+
+            <label>
+              Duration (minutes)
+              <input
+                name="duration"
+                required
+                type="number"
+                min="1"
+                defaultValue={editingAssignment.duration || 60}
+              />
+            </label>
+
+            <button className="primary" type="submit">
+              Save changes
+            </button>
+
+            <button
+              className="text-button auth-link"
+              type="button"
+              onClick={() => setEditingAssignment(null)}
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <form className="panel form-panel" onSubmit={addAssignment}>
+            <p className="eyebrow">Publish work</p>
+            <h3>Schedule an assignment or test</h3>
+
+            <label>
+              Title
+              <input name="title" required placeholder="e.g. Week 3 essay" />
+            </label>
+
+            <label>
+              Subject
+              <input name="subject" required placeholder="e.g. History" />
+            </label>
+
+            <label>
+              Course
+              <select name="course" defaultValue="">
+                <option value="">All courses</option>
+                {courses.map(([name]) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+
+              <small className="muted">
+                Only learners enrolled on this course will see the assignment.
+              </small>
+            </label>
+
+            <label>
+              Year of study
+              <select name="yearLevel" defaultValue="">
+                <option value="">All years</option>
+                {[1, 2, 3, 4, 5, 6].map((year) => (
+                  <option key={year} value={year}>
+                    Year {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Academic year
+              <input
+                name="academicYear"
+                type="number"
+                min="2000"
+                max="2100"
+                defaultValue={CURRENT_ACADEMIC_YEAR}
+              />
+            </label>
+
+            <label>
+              Term or semester
+              <input name="term" placeholder="e.g. Term 3 / Semester 2" />
+            </label>
+
+            <label>
+              Start date and time
+              <input name="start" required type="datetime-local" />
+            </label>
+
+            <label>
+              End date
+              <input name="due" required type="date" />
+            </label>
+
+            <label>
+              End time
+              <input name="dueTime" required type="time" defaultValue="23:59" />
+            </label>
+
+            <label>
+              Duration (minutes)
+              <input
+                name="duration"
+                required
+                type="number"
+                min="1"
+                defaultValue="60"
+              />
+            </label>
+
+            <label className="file-drop">
+              Choose any file
+              <input name="file" required type="file" />
+            </label>
+
+            <button className="primary" type="submit">
+              Publish scheduled work
+            </button>
+          </form>
+        ))}
+    </div>
+
     {canManage && <section className="panel wide-panel"><div className="panel-heading"><div><p className="eyebrow">All submissions</p><h3>Search, filter and mark student work</h3></div><span className="count">{filteredSubmissions.length} of {allSubmissions.length}</span></div>
       <div className="filter-bar">
         <input className="search-input" placeholder="Search by name, student ID or assignment…" value={subSearch} onChange={(e) => setSubSearch(e.target.value)} />
@@ -685,7 +2093,7 @@ function Assignments({ user, assignments, setAssignments, submissions, setSubmis
             <button className="secondary" onClick={() => downloadSubmission(submission)}>Download</button>
             {!submission.closed && <button className="secondary" onClick={() => closeSubmission(submission)}>Close</button>}
             {submission.closed && <label className="secondary upload-button">Marked ZIP<input type="file" accept=".zip,application/zip" onChange={(e) => uploadMarkedFile(submission, e.target.files[0])} /></label>}
-            {submission.markedFileUrl && <button className="secondary" onClick={() => downloadSubmission({ fileUrl: submission.markedFileUrl, fileName: submission.markedFileName })}>Marked ZIP</button>}
+            {submission.markedFileUrl && <button className="secondary" onClick={() => downloadSubmission({ fileUrl: submission.markedFileUrl, fileName: submission.markedFileName })}>Uploaded ZIP</button>}
             {submission.remediationFileUrl && <button className="secondary" onClick={() => downloadSubmission({ fileUrl: submission.remediationFileUrl, fileName: submission.remediationFileName })}>Remediation file</button>}
             {submission.mark !== undefined && <button className="secondary" onClick={() => downloadMark(submission)}>Print PDF</button>}
           </td>
@@ -723,39 +2131,182 @@ function TestsExams({ user, tests, setTests, attempts, setAttempts, accounts, co
     setTaking(test); setAnswers({});
   };
 
-  const submitTest = () => {
+  const submitTest = async () => {
     const test = taking;
-    const mcqQuestions = test.questions.filter((q) => q.type !== "essay");
-    const essayQuestions = test.questions.filter((q) => q.type === "essay");
-    const total = mcqQuestions.length || 1;
-    let correct = 0;
-    mcqQuestions.forEach((q) => { const index = test.questions.indexOf(q); if (answers[index] === q.correct) correct++; });
-    const score = mcqQuestions.length ? Math.round((correct / total) * 100) : 0;
-    const essayAnswers = essayQuestions.map((q) => ({ question: q.question, answer: answers[test.questions.indexOf(q)] || "" }));
-    const needsReview = essayQuestions.length > 0;
-    const key = `${test.id}-${user.studentId}`;
-    const list = attempts[key] || [];
-    const attempt = { attemptNumber: list.length + 1, score, correct, total: mcqQuestions.length, essayAnswers, needsReview, takenAt: new Date().toISOString(), passed: mcqQuestions.length ? score >= (test.passingMark ?? passMark) : null };
-    setAttempts({ ...attempts, [key]: [...list, attempt] });
-    setTaking(null); setAnswers({});
-    // Feed the best attempt into the same marks list Results/Overview use, so a passed/failed
-    // test counts toward the student's overall average and shows up on the Results page —
-    // exactly like an assignment mark, using a TEST- prefixed assessment ID to avoid collisions.
-    // Tests made up entirely of essay/long-text questions have no auto-score (mcqQuestions.length
-    // is 0) — these are flagged `needsReview` instead of publishing a mark, so a staff member can
-    // read the written answers and mark them manually before anything reaches the student's Results.
-    if (mcqQuestions.length) {
-      const assessmentId = `TEST-${test.id}`;
-      const existingMark = marks.find((mark) => mark.studentId === user.studentId && mark.assessmentId === assessmentId);
-      const bestOfAll = Math.max(score, existingMark?.score ?? 0);
-      const markResult = { studentId: user.studentId, assessmentId, student: user.name, subject: test.title, score: bestOfAll, weighting: 100, grade: gradeFor(bestOfAll, test.passingMark ?? passMark), status: "Published", publishedAt: new Date().toISOString().slice(0, 10), feedback: bestOfAll < (test.passingMark ?? passMark) ? `Remediation is required below ${test.passingMark ?? passMark}% on ${test.title}.` : `${test.title} passed at the ${test.passingMark ?? passMark}% threshold.` };
-      setMarks(existingMark ? marks.map((mark) => mark === existingMark ? { ...mark, ...markResult } : mark) : [...marks, markResult]);
+
+    if (!test) {
+      notify("No test is currently open.");
+      return;
     }
-    if (needsReview) notify(`${test.title} submitted. Your long-answer response${essayQuestions.length > 1 ? "s are" : " is"} awaiting staff review before ${mcqQuestions.length ? "the combined result is" : "a result is"} shown.`);
-    else if (attempt.passed) notify(`You passed ${test.title} with ${score}%! Great work.`);
-    else {
-      const remaining = test.maxAttempts - attempt.attemptNumber;
-      notify(remaining > 0 ? `You scored ${score}% on ${test.title} — below the ${test.passingMark ?? passMark}% pass mark. Remediation is recommended before your next attempt (${remaining} left).` : `You scored ${score}% on ${test.title} on your final attempt. Please speak with your instructor about remediation.`);
+
+    try {
+      const mcqQuestions = test.questions.filter((q) => q.type !== "essay");
+      const essayQuestions = test.questions.filter((q) => q.type === "essay");
+
+      const total = mcqQuestions.length;
+      let correct = 0;
+
+      mcqQuestions.forEach((q) => {
+        const index = test.questions.indexOf(q);
+
+        if (answers[index] === q.correct) {
+          correct += 1;
+        }
+      });
+
+      const score = total
+        ? Math.round((correct / total) * 100)
+        : 0;
+
+      const essayAnswers = essayQuestions.map((q) => ({
+        question: q.question,
+        answer: answers[test.questions.indexOf(q)] || "",
+      }));
+
+      const needsReview = essayQuestions.length > 0;
+
+      const key = `${test.id}-${user.studentId}`;
+      const list = attempts[key] || [];
+
+      const attempt = {
+        attemptNumber: list.length + 1,
+        score,
+        correct,
+        total,
+        essayAnswers,
+        needsReview,
+        takenAt: new Date().toISOString(),
+        passed: total
+          ? score >= (test.passingMark ?? passMark)
+          : null,
+      };
+
+      /*
+       * Keep the attempt in the current browser state as well.
+       * This preserves the existing Tests & Exams UI while the
+       * actual mark is now also stored in SQLite below.
+       */
+      const nextAttempts = {
+        ...attempts,
+        [key]: [...list, attempt],
+      };
+
+      setAttempts(nextAttempts);
+
+      /*
+       * Essay-only tests are intentionally not given an automatic
+       * result. Staff must review those answers first.
+       */
+      if (total > 0) {
+        const response = await apiRequest("/api/tests/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            testId: String(test.id),
+            testTitle: test.title,
+            passingMark: Number(test.passingMark ?? passMark),
+            score,
+            correct,
+            total,
+            essayAnswers,
+            needsReview,
+          }),
+        });
+
+        const saved = response.mark || response;
+
+        const markResult = {
+          id: saved.id,
+          studentId: saved.studentId || user.studentId,
+          assessmentId:
+            saved.assessmentId || `TEST-${test.id}`,
+          student: user.name,
+          subject: test.title,
+          score: Number(saved.mark ?? score),
+          weighting: 100,
+          passingMark: Number(
+            test.passingMark ?? passMark
+          ),
+          grade: gradeFor(
+            Number(saved.mark ?? score),
+            Number(test.passingMark ?? passMark)
+          ),
+          status: saved.status || "Published",
+          publishedAt:
+            saved.publishedAt ||
+            new Date().toISOString().slice(0, 10),
+          feedback:
+            Number(saved.mark ?? score) <
+              Number(test.passingMark ?? passMark)
+              ? `Remediation is required below ${test.passingMark ?? passMark
+              }% on ${test.title}.`
+              : `${test.title} passed at the ${test.passingMark ?? passMark
+              }% threshold.`,
+        };
+
+        /*
+         * Replace the existing database-backed result when the
+         * student improves their best score. Otherwise keep the
+         * existing best result.
+         */
+        const existingMark = marks.find(
+          (mark) =>
+            mark.studentId === user.studentId &&
+            mark.assessmentId === `TEST-${test.id}`
+        );
+
+        if (existingMark) {
+          setMarks(
+            marks.map((mark) =>
+              mark === existingMark
+                ? {
+                  ...mark,
+                  ...markResult,
+                }
+                : mark
+            )
+          );
+        } else {
+          setMarks([...marks, markResult]);
+        }
+
+        /*
+         * Ask the app to refresh from SQLite immediately rather
+         * than waiting for the normal five-second sync.
+         */
+        window.dispatchEvent(
+          new Event("portal-sync-now")
+        );
+      }
+
+      setTaking(null);
+      setAnswers({});
+
+      if (needsReview) {
+        notify(
+          `${test.title} submitted. Your long-answer response${essayQuestions.length > 1 ? "s are" : " is"
+          } awaiting staff review.`
+        );
+      } else if (attempt.passed) {
+        notify(
+          `You passed ${test.title} with ${score}%!`
+        );
+      } else {
+        const remaining =
+          test.maxAttempts - attempt.attemptNumber;
+
+        notify(
+          remaining > 0
+            ? `You scored ${score}% on ${test.title}. ${remaining} attempt(s) remaining.`
+            : `You scored ${score}% on your final attempt for ${test.title}.`
+        );
+      }
+    } catch (error) {
+      notify(
+        `Could not save the test result: ${error.message}`
+      );
     }
   };
 
@@ -872,7 +2423,8 @@ function TestsExams({ user, tests, setTests, attempts, setAttempts, accounts, co
   </>;
 }
 
-function Results({ marks, allMarks, canEdit, setMarks, user, notify, passMark, setPassMark, accounts, institution, t = (key) => key }) {  const [editing, setEditing] = useState(null);
+function Results({ marks, allMarks, canEdit, setMarks, user, notify, passMark, setPassMark, accounts, institution, t = (key) => key }) {
+  const [editing, setEditing] = useState(null);
   const [editingScore, setEditingScore] = useState(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -961,10 +2513,446 @@ function Results({ marks, allMarks, canEdit, setMarks, user, notify, passMark, s
   const weightedTotal = visibleMarks.reduce((sum, mark) => sum + effectiveScore(mark) * Number(mark.weighting || 100), 0);
   const total = totalWeight ? weightedTotal / totalWeight : 0;
   const average = attempts.length ? attempts.reduce((sum, value) => sum + value, 0) / attempts.length : 0;
-  const addMark = (event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const studentId = String(data.get("studentId")).trim(); const assessmentId = String(data.get("assessmentId")).trim(); if (marks.some((mark) => mark.studentId.toLowerCase() === studentId.toLowerCase() && String(mark.assessmentId).toLowerCase() === assessmentId.toLowerCase())) { notify("That student and assessment already have a mark."); return; } const score = Number(data.get("score")); const passingMark = Number(data.get("passingMark")) || passMark; setMarks([...marks, { studentId, assessmentId, student: accounts.find((a) => a.studentId === studentId)?.name || studentId, subject: data.get("subject"), score, passingMark, grade: gradeFor(score, passingMark), weighting: Number(data.get("weighting")) || 100, status: "Draft", feedback: "", remediation: { count: 0 } }]); event.currentTarget.reset(); };
+  const addMark = async (event) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+
+    const studentId = String(data.get("studentId") || "").trim();
+    const assessmentId = String(data.get("assessmentId") || "").trim();
+    const subject = String(data.get("subject") || "").trim();
+    const score = Number(data.get("score"));
+    const passingMark = Number(data.get("passingMark")) || passMark;
+    const weighting = Number(data.get("weighting")) || 100;
+
+    if (!studentId || !assessmentId || !subject) {
+      notify("Student ID, Assessment ID and Subject are required.");
+      return;
+    }
+
+    if (!Number.isFinite(score) || score < 0 || score > 100) {
+      notify("Score must be between 0 and 100.");
+      return;
+    }
+
+    if (
+      marks.some(
+        (mark) =>
+          String(mark.studentId).toLowerCase() === studentId.toLowerCase() &&
+          String(mark.assessmentId).toLowerCase() === assessmentId.toLowerCase()
+      )
+    ) {
+      notify("That student and assessment already have a mark.");
+      return;
+    }
+
+    try {
+      const response = await apiRequest("/admin/marks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+          assessmentId,
+          assessmentName: subject,
+          mark: score,
+          feedback: "",
+        }),
+      });
+
+      const saved = response.mark || response;
+
+      const result = {
+        id: saved.id,
+        studentId: saved.studentId || studentId,
+        assessmentId: saved.assessmentId || assessmentId,
+        student:
+          accounts.find((a) => a.studentId === studentId)?.name || studentId,
+        subject,
+        score: Number(saved.mark ?? score),
+        passingMark,
+        grade: gradeFor(score, passingMark),
+        weighting,
+        status: saved.status || "Submitted",
+        updatedAt: saved.updatedAt,
+        feedback: "",
+        remediation: { count: 0 },
+      };
+
+      setMarks([...marks, result]);
+
+      form.reset();
+
+      window.dispatchEvent(new Event("portal-sync-now"));
+
+      notify(`Mark saved for ${result.student}.`);
+    } catch (error) {
+      notify(`Could not save the mark: ${error.message}`);
+    }
+  };
   const updateRemediation = (mark, field, value) => setMarks(marks.map((item) => item === mark ? { ...item, remediation: { ...(item.remediation || {}), [field]: field === "count" ? Number(value) : value } } : item));
   const deleteMark = (mark) => setMarks(marks.filter((item) => item !== mark));
-  return <><section className="panel tips-panel"><p className="eyebrow">Next steps</p><h3>{canEdit ? "Staff marking checklist" : "How to get your marks back"}</h3><p className="muted">{canEdit ? "Review the learner's submission, check the student ID and course, enter the mark, add feedback, then publish it. Use remediation when the mark is below the configured passing threshold." : "Check Results after staff publish. Download your summary and any marked ZIP feedback. If remediation is shown, follow the scheduled instructions and upload the replacement work before its new deadline."}</p></section><section className="panel"><div className="panel-heading"><div><p className="eyebrow">Progress report</p><h3>{canEdit ? "Mark publication workflow" : "Your results"}</h3></div><div><span className="count">{visibleMarks.length} records</span>{!canEdit && <button className="secondary summary-button" onClick={downloadSummary}>{t("downloadSummary")}</button>}{canEdit && <button className="secondary summary-button" onClick={downloadSummary}>Print result summary</button>}</div></div><div className="result-filters"><label>Show <select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">All results</option><option value="remediation">Needs remediation</option><option value="passing">Passing / no remediation</option></select></label>{canEdit && <label>Find student <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t("search")}…`} /></label>}</div>{canEdit && <div className="workflow-tools"><form className="inline-form" onSubmit={addMark}><input name="studentId" required placeholder="Student ID" /><input name="assessmentId" required placeholder="Assessment ID" /><input name="subject" required placeholder="Subject" /><input name="score" required type="number" min="0" max="100" placeholder="Score" /><input name="passingMark" type="number" min="0" max="100" defaultValue={passMark} placeholder="Passing %" /><input name="weighting" type="number" min="1" max="100" defaultValue="100" placeholder="Weight %" /><button className="primary" type="submit">{t("addMark")}</button></form><label className="pass-rule">Default passing mark <input type="number" min="0" max="100" value={passMark} onChange={(e) => setPassMark(Number(e.target.value))} />%</label></div>}{!canEdit && <div className="result-summary"><strong>{Math.round(total)}%</strong><span>{t("totalWeighted")} · {total >= passMark ? t("passingRequirementMet") : t("needsRemediation")} · Attempts min {attempts.length ? Math.min(...attempts) : 0}% · max {attempts.length ? Math.max(...attempts) : 0}% · avg {Math.round(average)}%</span></div>}{visibleMarks.length ? visibleMarks.map((mark) => <div className="result-row" key={resultId(mark)}><div><strong>{mark.subject}</strong><small>{mark.student} · {mark.assessmentId || "Assessment"} · {effectiveScore(mark)}% · {mark.weighting || 100}% weighting · Passing requirement: {markThreshold(mark)}%</small><small className="warning-text">{effectiveScore(mark) < markThreshold(mark) ? `R · Below the ${markThreshold(mark)}% passing requirement — remediation will be scheduled.` : `Passing requirement met at ${markThreshold(mark)}%.`}</small>{!canEdit && <small>Published {mark.publishedAt || "locally"} · Previous result history is retained</small>}{canEdit && effectiveScore(mark) < markThreshold(mark) && <div className="remediation-fields"><label>Remediation date<input type="date" value={mark.remediation?.date || ""} onChange={(e) => updateRemediation(mark, "date", e.target.value)} /></label><label>Time<input type="time" value={mark.remediation?.time || ""} onChange={(e) => updateRemediation(mark, "time", e.target.value)} /></label><label>Attempts<input type="number" min="0" value={mark.remediation?.count || 0} onChange={(e) => updateRemediation(mark, "count", e.target.value)} /></label><label>Remediation mark<input type="number" min="0" max="100" value={mark.remediation?.score || ""} onChange={(e) => updateRemediation(mark, "score", e.target.value)} /></label><button className="secondary" onClick={() => updateRemediation(mark, "completed", !mark.remediation?.completed)}>{mark.remediation?.completed ? "Remediated" : "Mark remediated"}</button></div>}  </div>{editingScore === resultId(mark) ? <input className="inline-input score-editor" type="number" min="0" max="100" defaultValue={mark.score} onBlur={(e) => { updateScore(mark, e.target.value); setEditingScore(null); notify(`Corrected locked result for ${mark.student}.`); }} autoFocus /> : <b className="grade">{gradeFor(effectiveScore(mark), markThreshold(mark))}</b>}{canEdit && <div className="workflow"><span className={`status status-${(mark.status || "Published").toLowerCase()}`}>{mark.status || "Published"}</span>{mark.status !== "Locked" && <select value="" onChange={(e) => { if (e.target.value) transition(mark, e.target.value); }}><option value="">{`Move to ${nextStatusOptions[mark.status || "Published"]?.[0] || "next stage"}…`}</option>{(nextStatusOptions[mark.status || "Published"] || []).map((option) => <option key={option} value={option}>{option}</option>)}</select>}{mark.status === "Locked" && <button className="text-button" onClick={() => setEditingScore(resultId(mark))}>Correct score</button>}<button className="text-button danger" onClick={() => deleteMark(mark)}>{t("delete")}</button></div>}{editing === resultId(mark) ? <input className="inline-input" value={mark.feedback || ""} onChange={(e) => update(mark, e.target.value)} onBlur={() => { setEditing(null); notify(`Feedback changed for ${mark.student}.`); }} autoFocus /> : <span className="feedback" onClick={() => canEdit && setEditing(resultId(mark))}>{mark.feedback || (canEdit ? "Click to add feedback" : "No feedback yet")}</span>}</div>) : <p className="muted">{canEdit ? "No marks have been imported yet." : t("noRecords")}</p>}</section></>;
+  return (
+    <>
+      <section className="panel tips-panel">
+        <p className="eyebrow">Next steps</p>
+
+        <h3>
+          {canEdit ? "Staff marking checklist" : "How to get your marks back"}
+        </h3>
+
+        <p className="muted">
+          {canEdit
+            ? "Review the learner's submission, check the student ID and course, enter the mark, add feedback, then publish it. Use remediation when the mark is below the configured passing threshold."
+            : "Check Results after staff publish. Download your summary and any marked ZIP feedback. If remediation is shown, follow the scheduled instructions and upload the replacement work before its new deadline."}
+        </p>
+      </section>
+
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Progress report</p>
+
+            <h3>
+              {canEdit ? "Mark publication workflow" : "Your results"}
+            </h3>
+          </div>
+
+          <div>
+            <span className="count">{visibleMarks.length} records</span>
+
+            {!canEdit && (
+              <button
+                className="secondary summary-button"
+                onClick={downloadSummary}
+              >
+                {t("downloadSummary")}
+              </button>
+            )}
+
+            {canEdit && (
+              <button
+                className="secondary summary-button"
+                onClick={downloadSummary}
+              >
+                Print result summary
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="result-filters">
+          <label>
+            Show
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="all">All results</option>
+              <option value="remediation">Needs remediation</option>
+              <option value="passing">Passing / no remediation</option>
+            </select>
+          </label>
+
+          {canEdit && (
+            <label>
+              Find student
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`${t("search")}…`}
+              />
+            </label>
+          )}
+        </div>
+
+        {canEdit && (
+          <div className="workflow-tools">
+            <form className="inline-form" onSubmit={addMark}>
+              <input
+                name="studentId"
+                required
+                placeholder="Student ID"
+              />
+
+              <input
+                name="assessmentId"
+                required
+                placeholder="Assessment ID"
+              />
+
+              <input
+                name="subject"
+                required
+                placeholder="Subject"
+              />
+
+              <input
+                name="score"
+                required
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Score"
+              />
+
+              <input
+                name="passingMark"
+                type="number"
+                min="0"
+                max="100"
+                defaultValue={passMark}
+                placeholder="Passing %"
+              />
+
+              <input
+                name="weighting"
+                type="number"
+                min="1"
+                max="100"
+                defaultValue="100"
+                placeholder="Weight %"
+              />
+
+              <button className="primary" type="submit">
+                {t("addMark")}
+              </button>
+            </form>
+
+            <label className="pass-rule">
+              Default passing mark
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={passMark}
+                onChange={(e) => setPassMark(Number(e.target.value))}
+              />
+              %
+            </label>
+          </div>
+        )}
+
+        {!canEdit && (
+          <div className="result-summary">
+            <strong>{Math.round(total)}%</strong>
+
+            <span>
+              {t("totalWeighted")} ·{" "}
+              {total >= passMark
+                ? t("passingRequirementMet")
+                : t("needsRemediation")}{" "}
+              · Attempts min {attempts.length ? Math.min(...attempts) : 0}% · max{" "}
+              {attempts.length ? Math.max(...attempts) : 0}% · avg{" "}
+              {Math.round(average)}%
+            </span>
+          </div>
+        )}
+
+        {visibleMarks.length ? (
+          visibleMarks.map((mark) => (
+            <div className="result-row" key={resultId(mark)}>
+              <div>
+                <strong>{mark.subject}</strong>
+
+                <small>
+                  {mark.student} · {mark.assessmentId || "Assessment"} ·{" "}
+                  {effectiveScore(mark)}% · {mark.weighting || 100}% weighting ·
+                  Passing requirement: {markThreshold(mark)}%
+                </small>
+
+                <small className="warning-text">
+                  {effectiveScore(mark) < markThreshold(mark)
+                    ? `R · Below the ${markThreshold(
+                      mark,
+                    )}% passing requirement — remediation will be scheduled.`
+                    : `Passing requirement met at ${markThreshold(mark)}%.`}
+                </small>
+
+                {!canEdit && (
+                  <small>
+                    Published {mark.publishedAt || "locally"} · Previous result
+                    history is retained
+                  </small>
+                )}
+
+                {canEdit &&
+                  effectiveScore(mark) < markThreshold(mark) && (
+                    <div className="remediation-fields">
+                      <label>
+                        Remediation date
+                        <input
+                          type="date"
+                          value={mark.remediation?.date || ""}
+                          onChange={(e) =>
+                            updateRemediation(mark, "date", e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label>
+                        Time
+                        <input
+                          type="time"
+                          value={mark.remediation?.time || ""}
+                          onChange={(e) =>
+                            updateRemediation(mark, "time", e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label>
+                        Attempts
+                        <input
+                          type="number"
+                          min="0"
+                          value={mark.remediation?.count || 0}
+                          onChange={(e) =>
+                            updateRemediation(mark, "count", e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label>
+                        Remediation mark
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={mark.remediation?.score || ""}
+                          onChange={(e) =>
+                            updateRemediation(mark, "score", e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          updateRemediation(
+                            mark,
+                            "completed",
+                            !mark.remediation?.completed,
+                          )
+                        }
+                      >
+                        {mark.remediation?.completed
+                          ? "Remediated"
+                          : "Mark remediated"}
+                      </button>
+                    </div>
+                  )}
+              </div>
+
+              {editingScore === resultId(mark) ? (
+                <input
+                  className="inline-input score-editor"
+                  type="number"
+                  min="0"
+                  max="100"
+                  defaultValue={mark.score}
+                  onBlur={(e) => {
+                    updateScore(mark, e.target.value);
+                    setEditingScore(null);
+                    notify(`Corrected locked result for ${mark.student}.`);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <b className="grade">
+                  {gradeFor(effectiveScore(mark), markThreshold(mark))}
+                </b>
+              )}
+
+              {canEdit && (
+                <div className="workflow">
+                  <span
+                    className={`status status-${(
+                      mark.status || "Published"
+                    ).toLowerCase()}`}
+                  >
+                    {mark.status || "Published"}
+                  </span>
+
+                  {mark.status !== "Locked" && (
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          transition(mark, e.target.value);
+                        }
+                      }}
+                    >
+                      <option value="">
+                        {`Move to ${nextStatusOptions[mark.status || "Published"]?.[0] ||
+                          "next stage"
+                          }…`}
+                      </option>
+
+                      {(
+                        nextStatusOptions[mark.status || "Published"] || []
+                      ).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {mark.status === "Locked" && (
+                    <button
+                      className="text-button"
+                      onClick={() => setEditingScore(resultId(mark))}
+                    >
+                      Correct score
+                    </button>
+                  )}
+
+                  <button
+                    className="text-button danger"
+                    onClick={() => deleteMark(mark)}
+                  >
+                    {t("delete")}
+                  </button>
+                </div>
+              )}
+
+              {editing === resultId(mark) ? (
+                <input
+                  className="inline-input"
+                  value={mark.feedback || ""}
+                  onChange={(e) => update(mark, e.target.value)}
+                  onBlur={() => {
+                    setEditing(null);
+                    notify(`Feedback changed for ${mark.student}.`);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="feedback"
+                  onClick={() =>
+                    canEdit && setEditing(resultId(mark))
+                  }
+                >
+                  {mark.feedback ||
+                    (canEdit ? "Click to add feedback" : "No feedback yet")}
+                </span>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="muted">
+            {canEdit ? "No marks have been imported yet." : t("noRecords")}
+          </p>
+        )}
+      </section>
+    </>
+  );
+
 }
 
 function CsvUploads({ setNotice, marks, setMarks, accounts, passMark }) {
@@ -1066,30 +3054,318 @@ function Courses({ accounts, setAccounts, user, setUser, apiConnected, notify, c
   const [myCourse, setMyCourse] = useState(user.course || "");
   const [myYear, setMyYear] = useState(user.yearLevel || 1);
   const [saving, setSaving] = useState(false);
-  const enroll = (event) => { event.preventDefault(); const normalizedId = studentId.trim().toLowerCase(); const normalizedUsername = temporaryUsername.trim().toLowerCase(); if (accounts.some((account) => account.studentId?.toLowerCase() === normalizedId)) return setError("That student ID is already registered."); if (accounts.some((account) => account.username.toLowerCase() === normalizedUsername)) return setError("That temporary username is already in use."); const next = [...accounts, { name: studentName.trim(), username: normalizedUsername, password: "Welcome123!", temporary: true, studentId: studentId.trim(), email: studentEmail.trim(), course: selected, role: "student" }]; setAccounts(next); setStudentName(""); setStudentId(""); setStudentEmail(""); setTemporaryUsername(""); setSelected(""); setError(""); };
+  const enroll = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const name = studentName.trim();
+    const username = temporaryUsername.trim().toLowerCase();
+    const password = "Welcome123!";
+    const normalizedId = studentId.trim();
+    const yearLevel = 1;
+
+    if (!name || !username || !normalizedId || !selected) {
+      setError("Complete all required learner fields.");
+      return;
+    }
+
+    if (
+      accounts.some(
+        (account) =>
+          account.studentId?.toLowerCase() ===
+          normalizedId.toLowerCase()
+      )
+    ) {
+      setError("That student ID is already registered.");
+      return;
+    }
+
+    if (
+      accounts.some(
+        (account) =>
+          account.username.toLowerCase() === username
+      )
+    ) {
+      setError("That username is already in use.");
+      return;
+    }
+
+    try {
+      const created = await apiRequest("/admin/accounts/student", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          username,
+          password,
+          studentId: normalizedId,
+          course: selected,
+          yearLevel,
+        }),
+      });
+
+      setAccounts((currentAccounts) => [
+        ...currentAccounts,
+        created,
+      ]);
+
+      setStudentName("");
+      setStudentId("");
+      setStudentEmail("");
+      setTemporaryUsername("");
+      setSelected("");
+      setError("");
+
+      window.dispatchEvent(
+        new Event("portal-sync-now")
+      );
+
+      notify(
+        `Student account created for ${created.name}.`
+      );
+    } catch (error) {
+      setError(
+        error.message || "Could not create the student account."
+      );
+    }
+  };
   const saveMyCourse = async (event) => {
     event.preventDefault();
-    if (!myCourse) return notify("Choose a course before saving.");
+
+    if (!myCourse) {
+      notify("Choose a course before saving.");
+      return;
+    }
+
     setSaving(true);
+
     try {
-      if (apiConnected) {
-        await apiRequest("/api/accounts/course", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ course: myCourse, yearLevel: Number(myYear) }) });
-        window.dispatchEvent(new Event("portal-sync-now"));
-        setUser({ ...user, course: myCourse, yearLevel: Number(myYear) });
-        notify(`Course saved: ${myCourse}, year ${myYear}.`);
-      } else {
-        const updated = { ...user, course: myCourse, yearLevel: Number(myYear) };
-        setAccounts(accounts.map((account) => account.username === user.username ? updated : account));
-        setUser(updated);
-        notify(`Course saved locally (offline mode): ${myCourse}, year ${myYear}.`);
-      }
-    } catch (err) {
-      notify(`Could not save your course: ${err.message}`);
+      const updated = await apiRequest(
+        "/api/accounts/course",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            course: myCourse,
+            yearLevel: Number(myYear),
+          }),
+        }
+      );
+
+      const updatedUser = {
+        ...user,
+        course: updated.course,
+        yearLevel: updated.yearLevel,
+      };
+
+      setUser(updatedUser);
+
+      setAccounts((currentAccounts) =>
+        currentAccounts.map((account) =>
+          account.id === user.id
+            ? {
+              ...account,
+              course: updated.course,
+              yearLevel: updated.yearLevel,
+            }
+            : account
+        )
+      );
+
+      window.dispatchEvent(
+        new Event("portal-sync-now")
+      );
+
+      notify(
+        `Course saved: ${updated.course}, year ${updated.yearLevel}.`
+      );
+    } catch (error) {
+      notify(
+        `Could not save your course: ${error.message}`
+      );
     } finally {
       setSaving(false);
     }
   };
-  return <div className="two-col"><section className="panel"><p className="eyebrow">Course catalogue</p><h3>Available pathways</h3>{courses.map(([name, requirement], index) => <div className="list-row" key={name}><div><strong>{name}</strong><small>Entry requirements: {requirement}</small></div>{canManage && <button className="secondary" onClick={() => setSelected(name)}>Select</button>}{canManage && index >= COURSES.length && <button className="text-button danger" onClick={() => { if (window.confirm(`Remove ${name} from the course catalogue?`)) removeCourse(name); }}>Remove</button>}</div>)}</section>{user.role === "student" && <form className="panel form-panel" onSubmit={saveMyCourse}><p className="eyebrow">Your enrolment</p><h3>Choose your course and year</h3><p className="muted">This is saved to {apiConnected ? "the local SQLite database" : "your browser (offline mode)"} and will still be there after you refresh or sign in again.</p><label>Course<select required value={myCourse} onChange={(e) => setMyCourse(e.target.value)}><option value="">Choose your course</option>{courses.map(([name]) => <option key={name}>{name}</option>)}</select></label><label>Year of study<select value={myYear} onChange={(e) => setMyYear(Number(e.target.value))}><option value={1}>1st year</option><option value={2}>2nd year</option><option value={3}>3rd year</option><option value={4}>4th year</option><option value={5}>5th year</option><option value={6}>6th year</option></select></label><button className="primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save my course"}</button></form>}{user.role !== "student" && <form className="panel form-panel" onSubmit={enroll}><p className="eyebrow">Learner details</p><h3>Register or assign a learner</h3><label>Full name<input required value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="New learner name" /></label><label>Student ID<input required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="STU-002" /></label><label>Temporary username<input required value={temporaryUsername} onChange={(e) => setTemporaryUsername(e.target.value)} placeholder="learner.temp" /></label><label>Trusted email<input required type="email" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} placeholder="learner@example.com" /></label><label>Course<select required value={selected} onChange={(e) => setSelected(e.target.value)}><option value="">Choose a course</option>{courses.map(([name]) => <option key={name}>{name}</option>)}</select></label>{error && <p className="error">{error}</p>}<button className="primary" type="submit">Create learner profile</button><p className="muted">Temporary username and password: <strong>{temporaryUsername || "chosen username"} / Welcome123!</strong>. The learner can change them after signing in. Stored locally in browser storage.</p></form>}</div>;
+  return (
+    <div className="two-col">
+      <section className="panel">
+        <p className="eyebrow">Course catalogue</p>
+        <h3>Available pathways</h3>
+
+        {courses.map(([name, requirement], index) => (
+          <div className="list-row" key={name}>
+            <div>
+              <strong>{name}</strong>
+              <small>Entry requirements: {requirement}</small>
+            </div>
+
+            {canManage && (
+              <button
+                className="secondary"
+                onClick={() => setSelected(name)}
+              >
+                Select
+              </button>
+            )}
+
+            {canManage && index >= COURSES.length && (
+              <button
+                className="text-button danger"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Remove ${name} from the course catalogue?`,
+                    )
+                  ) {
+                    removeCourse(name);
+                  }
+                }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+      </section>
+
+      {user.role === "student" && (
+        <form className="panel form-panel" onSubmit={saveMyCourse}>
+          <p className="eyebrow">Your enrolment</p>
+          <h3>Choose your course and year</h3>
+
+          <p className="muted">
+            This is saved to{" "}
+            {apiConnected
+              ? "the local SQLite database"
+              : "your browser (offline mode)"}
+            and will still be there after you refresh or sign in again.
+          </p>
+
+          <label>
+            Course
+            <select
+              required
+              value={myCourse}
+              onChange={(e) => setMyCourse(e.target.value)}
+            >
+              <option value="">Choose your course</option>
+
+              {courses.map(([name]) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Year of study
+            <select
+              value={myYear}
+              onChange={(e) => setMyYear(Number(e.target.value))}
+            >
+              <option value={1}>1st year</option>
+              <option value={2}>2nd year</option>
+              <option value={3}>3rd year</option>
+              <option value={4}>4th year</option>
+              <option value={5}>5th year</option>
+              <option value={6}>6th year</option>
+            </select>
+          </label>
+
+          <button
+            className="primary"
+            type="submit"
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save my course"}
+          </button>
+        </form>
+      )}
+
+      {user.role !== "student" && (
+        <form className="panel form-panel" onSubmit={enroll}>
+          <p className="eyebrow">Learner details</p>
+          <h3>Register or assign a learner</h3>
+
+          <label>
+            Full name
+            <input
+              required
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              placeholder="New learner name"
+            />
+          </label>
+
+          <label>
+            Student ID
+            <input
+              required
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              placeholder="STU-002"
+            />
+          </label>
+
+          <label>
+            Temporary username
+            <input
+              required
+              value={temporaryUsername}
+              onChange={(e) => setTemporaryUsername(e.target.value)}
+              placeholder="learner.temp"
+            />
+          </label>
+
+          <label>
+            Trusted email
+            <input
+              required
+              type="email"
+              value={studentEmail}
+              onChange={(e) => setStudentEmail(e.target.value)}
+              placeholder="learner@example.com"
+            />
+          </label>
+
+          <label>
+            Course
+            <select
+              required
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              <option value="">Choose a course</option>
+
+              {courses.map(([name]) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+
+          {error && <p className="error">{error}</p>}
+
+          <button className="primary" type="submit">
+            Create learner profile
+          </button>
+
+          <p className="muted">
+            Temporary username and password:{" "}
+            <strong>
+              {temporaryUsername || "chosen username"} / Welcome123!
+            </strong>
+            . The learner can change them after signing in. Stored locally in
+            browser storage.
+          </p>
+        </form>
+      )}
+    </div>
+  );
+
 }
 
 function CourseManager({ courses, setCustomCourses, canManage }) {
@@ -1359,6 +3635,16 @@ function MarkingRoom({ user, assignments, submissions, setSubmissions, memos, se
     setEditingMemo(true);
   };
 
+  const deleteMemo = () => {
+    if (!open) return;
+    if (window.confirm(`Delete memo for "${open.assignmentTitle}"?`)) {
+      const { [open.assignmentId]: _, ...remainingMemos } = memos;
+      setMemos(remainingMemos);
+      setEditingMemo(false);
+      setNotice("Memo deleted.");
+    }
+  }
+
   const counts = { total: queue.length, released: queue.filter((item) => stateOf(item) === "released").length, inProgress: queue.filter((item) => stateOf(item) === "in-progress").length };
 
   return <>
@@ -1373,13 +3659,15 @@ function MarkingRoom({ user, assignments, submissions, setSubmissions, memos, se
       </div>
       <div className="table-scroll"><table className="data-table ruled-table"><thead><tr><th>Student</th><th>Student ID</th><th>Assignment</th><th>Course</th><th>Year</th><th>Submitted</th><th>State</th><th>Mark</th><th>Action</th></tr></thead><tbody>
         {visible.length === 0 && <tr><td colSpan={9} className="muted">No submissions match this search or filter.</td></tr>}
-        {visible.map((item) => { const state = stateOf(item); const saved = draftFor(item.key); return <tr key={item.key} className={openKey === item.key ? "own-row" : ""}>
-          <td>{item.studentName}</td><td>{item.studentId}</td><td>{item.assignmentTitle}</td><td>{item.course || "—"}</td><td>{item.yearLevel ? `Year ${item.yearLevel}` : "—"}</td>
-          <td>{item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : "—"}</td>
-          <td><span className={`state-chip state-${state}`}>{state === "released" ? "Released" : state === "in-progress" ? `Saved ${saved?.savedAt ? new Date(saved.savedAt).toLocaleTimeString() : ""}` : "Not started"}</span></td>
-          <td>{item.mark !== undefined ? `${item.mark}%` : "—"}</td>
-          <td><button className="link-button" onClick={() => { setOpenKey(openKey === item.key ? "" : item.key); setEditingMemo(false); }}>{openKey === item.key ? "Close" : state === "released" ? "Re-mark" : state === "in-progress" ? "Resume marking" : "Open"}</button></td>
-        </tr>; })}
+        {visible.map((item) => {
+          const state = stateOf(item); const saved = draftFor(item.key); return <tr key={item.key} className={openKey === item.key ? "own-row" : ""}>
+            <td>{item.studentName}</td><td>{item.studentId}</td><td>{item.assignmentTitle}</td><td>{item.course || "—"}</td><td>{item.yearLevel ? `Year ${item.yearLevel}` : "—"}</td>
+            <td>{item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : "—"}</td>
+            <td><span className={`state-chip state-${state}`}>{state === "released" ? "Released" : state === "in-progress" ? `Saved ${saved?.savedAt ? new Date(saved.savedAt).toLocaleTimeString() : ""}` : "Not started"}</span></td>
+            <td>{item.mark !== undefined ? `${item.mark}%` : "—"}</td>
+            <td><button className="link-button" onClick={() => { setOpenKey(openKey === item.key ? "" : item.key); setEditingMemo(false); }}>{openKey === item.key ? "Close" : state === "released" ? "Re-mark" : state === "in-progress" ? "Resume marking" : "Open"}</button></td>
+          </tr>;
+        })}
       </tbody></table></div>
     </section>
 
@@ -1411,7 +3699,7 @@ function MarkingRoom({ user, assignments, submissions, setSubmissions, memos, se
               <label>Out of<input name="new-max" type="number" min="1" max="100" defaultValue={10} /></label>
               <label>Marking guidance<input name="new-guidance" /></label>
             </div>
-            <div className="form-actions"><button className="primary" type="submit">Save memo</button><button type="button" className="link-button" onClick={() => setEditingMemo(false)}>Cancel</button></div>
+            <div className="form-actions"><button className="primary" type="submit">Save memo</button><button type="button" className="link-button" onClick={() => setEditingMemo(false)}>Cancel</button><button type="button" className="link-button" onClick={deleteMemo} style={{ color: "red" }}>Delete memo</button></div>
           </form>}
         </div>
         <div className="marking-pane">

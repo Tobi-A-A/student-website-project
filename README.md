@@ -2,6 +2,13 @@
 
 A responsive, local-first education portal prototype for administrators and students. It runs in a browser on Windows, Linux, macOS, iOS and Android through the same responsive web app. The selected app name is **Meridian Learning Hub**; existing custom institution names remain unchanged, while the old default name is migrated safely.
 
+## Current implementation status
+Student account creation is now routed through the local SQLite API. Students can register from the login page, while administrators and main administrators can create student accounts from the staff workspace. All three paths use the same SQLite-backend student creation logic.
+
+Administrator account creation is also SQLite-backend. Main administrators can create administrator and main-administor accounts, while administrator accounts can be marked as temporary or permanent. The main administrator account cannot be deleted, and normal administrators cannot delete administrator accounts.
+
+Profile and course information is also being migrated to SQLite so that changes persist across refreshes and are not overwritten by the periodic database synchronization
+
 ## Capacity expectations
 
 This is a browser-local demonstration, not a concurrent production service. A single browser profile can comfortably manage roughly 100–500 learner records and 10–30 administrator accounts, depending on device memory and the size of local submission metadata. `localStorage` is usually limited to around 5–10 MB per browser origin, and uploaded file object URLs are temporary; large files or many learners will reach those limits quickly.
@@ -139,16 +146,18 @@ The staff workspace polls the database every five seconds. A failed poll does
 not overwrite the last successful display; it shows a visible connection error
 and retries automatically.
 
-The app intentionally uses `localStorage`, so it works without a database or internet. Demo accounts:
+### Demo accounts
 
-| Role | Username | Password |
-| --- | --- | --- |
-| Main administrator | `mainadmin` | `ChangeMe123!` |
-| Administrator | `admin` | `Admin123!` |
-| Temporary administrator | `tempadmin` | `TempAdmin123!` |
-| Student | `student` | `Student123!` |
+When demo seeding is enabled, the following accounts are created automatically:
 
-The sign-in screen includes a **Create an account** link for new students. Student registrations are saved in the browser for the standalone demo, while the backend also exposes SQLite-backed `POST /api/accounts/students` and `POST /api/accounts/sign-in` endpoints for local integration.
+| Role | Username | Password | Status |
+| --- | --- | --- | --- |
+| Main administrator | `mainadmin` | `ChangeMe123!` | Permanent |
+| Administrator | `admin` | `Admin123!` | Permanent |
+| Temporary administrator | `tempadmin` | `TempAdmin123!` | Temporary |
+| Student | `student` | `Student123!` | Student |
+
+The sign-in screen includes a **Create an account** link for new students. Student registrations are saved through the SQLite-backed `POST /api/accounts/students` endpoint. The same `createStudent()` database function is also used when staff create a learner from the administrator workspace.
 
 ## Clean install: starting with no demo data
 
@@ -209,6 +218,8 @@ demo accounts as a side effect of opening the database.
 The **Demo accounts** box on the sign-in page hides itself automatically in clean mode, so the
 demo passwords are never displayed to real users.
 
+After the first administrator is created, additional students and administrator accounts can be created from the application itself and are written to SQLite through the authentication API.
+
 ### Clearing an existing database
 
 If you already ran the demo and want to reuse the same database file, wipe it rather than hunting
@@ -232,26 +243,9 @@ Students will also want to clear the browser side (`localStorage`) if they previ
 demo, since assignments and submissions are cached there: open DevTools → Application → Local
 storage → clear, or use a private window.
 
-### Verified behaviour
+### Verification status
 
-Tested from a pristine copy of the repository (no `node_modules`, no database), installed and run
-exactly as a new user would:
-
-| Check | Result |
-| --- | --- |
-| `npm install` + `npm run build` in `frontend/` | Compiles successfully — `jszip` installs from the lockfile |
-| `npm install` + `node --test` in `backend/` | 7/7 tests pass |
-| `npm run create-admin` on a fresh database | Creates exactly **one** account, no demo data |
-| `npm run start:clean` | 0 marks, 0 assessments, 1 user — schema intact |
-| Clean-install sign-in | The created account signs in and gets an empty workspace |
-| Demo credentials on a clean install | `mainadmin` / `ChangeMe123!` rejected with **HTTP 401** |
-| Default `npm start` | 53 users, 148 marks — the full demo, unchanged |
-| `REACT_APP_SEED_DEMO=false` build | No demo learner names, assignments or tests in the bundle |
-
-
-The main administrator can create/delete administrators and use **Design** to change the institution name, accent colour, background colour, text colour and portal font. Administrators can publish any file type as an assignment and edit result feedback. Students can view/download assignment entries and see their published results. Local browser storage is for demonstration only; uploaded binary files are represented by their metadata until a server storage API is connected.
-
-Marks now follow a protected Draft → Submitted → Approved → Published → Locked workflow. This applies the SCAMPER method to publication: **Substitute** manual exposure with gated transitions, **Combine** approval with audit and notifications, **Adapt** the workflow to bulk imports, **Modify** results with weighting/publication metadata, **Put to another use** by exporting student summaries, **Eliminate** partial invalid imports, and **Reverse** the process when a correction is needed before publication. Unpublished marks are staff-only, and published/locked results notify students in the portal.
+The project has previously passed frontend and backend build/test checks, but account, student creation and profile persistence have been modified since that verification pass. These areas should be re-tested after the latest SQLite changes before the results are described as fully verified.
 
 ## Folder guide
 
@@ -270,13 +264,16 @@ Unused CRA branding and the unused source logo have been removed; required favic
 The browser uses these local endpoints (administrator endpoints require the
 session cookie created by sign-in):
 
-- `GET /api/health` — SQLite connectivity and record counts.
-- `GET /` — local API status and a health-link response; private records are not exposed.
+- `POST /api/accounts/students` — public student account registration backed by SQLite.
 - `POST /api/accounts/sign-in` — local account sign-in and session cookie.
-- `GET /admin/data` — users, marks, assessments and recent audit events.
-- `POST /admin/upload-marks` — all-or-nothing CSV mark import.
-- `GET /admin/marks.csv` — marks export.
-- `GET /admin/students.csv?limit=30|50|75|100` — capped bulk student export.
+- `GET /api/accounts/me` — restores the current signed-in account from the session cookie.
+- `PATCH /api/accounts/profile` — updates the signed-in user's profile information.
+- `PATCH /api/accounts/course` — lets a student save their course and year of study to SQLite.
+- `POST /admin/accounts/student` — administrator/main-administrator creation of a student account.
+- `POST /admin/accounts/admin` — administrator account creation, including temporary/permanent status.
+- `PATCH /admin/accounts/:id` — administrator account information updates.
+- `PATCH /admin/accounts/:id/role` — administrator role management.
+- `DELETE /admin/accounts/:id` — protected administrator/student account deletion.
 
 ## Automatic memo marking and privacy
 
@@ -625,11 +622,13 @@ The demo uses a common high-school grading scale: A (70–100), B (60–69), C (
 
 ## Storage and server deployment
 
-The browser demo stores UI data in `localStorage`. The optional backend uses SQLite commands and stores the normal SQL database file at `backend/school_data/portal.sqlite`; it is not a hosted SQL service. Runtime uploads and database files are ignored by Git.
+The portal uses a hybrid local-first model. UI features such as assignments, tests, some course catalogue data and other demo-content still use browser localStorage. User accounts, authentication, student course/year selection, marks and audit information are stored in the local SQLite database when the API is running.
 
-Learner profiles now require a course choice and a unique student ID. Staff-created learners receive an explicitly labelled temporary username and `Welcome123!` password, which they can replace after signing in. Duplicate IDs and usernames are rejected before saving. After self-registration, the learner sees a dedicated **Sign in** button. The current browser storage location is shown below the workspace heading; backend records are stored in `backend/school_data/portal.sqlite`.
+Learner profiles now require a course choice and a unique student ID. Students created by staff are saved to SQLite through the protected administrator API. The creation form can provide the learner's username, password, student ID, course and year of study. Passwords are hashed by the backend before being stored. Duplicate IDs and usernames are rejected before saving. After self-registration, the learner sees a dedicated **Sign in** button. The current browser storage location is shown below the workspace heading; backend records are stored in `backend/school_data/portal.sqlite`.
 
-Every account now has a **Profile** page for changing name, username and email; learners can also update their student ID and course. Username and student-ID changes are checked against existing accounts. Only the main administrator can create another main-administrator account from **Accounts**.
+Every account has a **Profile** page for updating account information. Name and username changes are saved through the local SQLite API. Students can also update their student ID, while course and year-of-study changes are handled through the SQLite-backed Courses workflow.
+
+Email is currently displayed as profile field but is not yet persisted in SQLite; a future database migration can add an email column when email-based account features are required.
 
 The signed-in workspace displays the current date using the device locale. Student results calculate a normalized weighted average; remediation entries retain the original mark and show minimum, maximum, and average across recorded attempts. The campus initials in the loading, login, and workspace branding are generated from the configured school name.
 
@@ -639,17 +638,21 @@ Staff can modify assignment details or mark an assignment completed. Completed a
 
 Assignments support an explicit end date and time. Staff can delete an incorrect assignment after confirmation. Students see completed/expired assignments with a strike-through state, and a normal submission is marked completed immediately with a notice that marking is pending. If the published mark is below the passing threshold, the same submission record reopens for a remediation upload; staff can download that remediation file, enter the replacement mark, and upload a marked ZIP for the learner.
 
-The Courses workspace now includes staff course administration. Added courses are stored locally and are available for learner enrolment and assignment/course matching. Staff submission cards retain the learner name, student ID, course, assignment, and uploaded file together so the correct work is downloaded and reviewed.
-
-Administrators can remove administrator-added courses from the Courses page after confirmation; built-in courses are protected. Course additions/removals use the same local-storage synchronization as assignments, so another open tab refreshes without logging out.
-
 Assignment changes are synchronized across open browser tabs without requiring sign-out (local storage events plus a short refresh interval). Staff can review each matched submission, close it, enter its mark directly on the submission card, and the result is immediately available in the learner’s Results area. Once an assignment is completed or expired, the learner cannot download/remove or replace the submitted file.
 
 Results recalculate the grade and remediation status whenever staff change the passing percentage; saved marks are never silently reinterpreted using the old threshold. For learners: open **Results** after publication, download the summary/marked ZIP, read staff feedback, and follow the remediation deadline if shown. For staff: verify the learner, course, assessment and submission, enter a 0–100 score, add clear feedback, check the calculated threshold result, then publish and provide the marked feedback package.
 
+### Course storage
+
+The built-in course catalogue and additional courses created through **Course administration** are currently stored in browser localStorage.
+
+A student's selected course and year of study are different: those values are stored in the SQLite `users` table through `PATCH /api/accounts/course`, so the students enrolment survive page refreshes and database synchronization.
+
 ### Session persistence, course selection, and the submissions table
 
 Two long-standing local-only bugs were fixed so the SQLite-backed workspace behaves the way a real portal should:
+
+Profile updates are being handled through the same SQLite-backed account model so that name, username and student informaton are not reverted by the periodic `/admin/data` synchronization.
 
 - **Refreshing the page no longer signs anyone out.** The backend already issued an `HttpOnly` session cookie on sign-in, but nothing on the frontend used it to restore state after a reload — `App` simply reset to a blank login screen every time. A new `GET /api/accounts/me` endpoint reads the cookie via the existing `sessionUser()` helper and returns the current account if the session is still valid; the React app calls it once on mount and repopulates the signed-in user automatically. If the cookie has expired or the API is offline, the login screen is shown as before.
 - **A student's chosen course and year of study now persist to SQLite**, not just to browser `localStorage`. The `users` table gained `course` and `year_level` columns, and a new `PATCH /api/accounts/course` endpoint (self-service, student-only) lets a learner set both from the **Courses** page; the change is written straight to the database, audit-logged as `student_account_changed`, and immediately reflected for admins in `/admin/data`. Previously this only ever updated local React state, so the periodic 5-second database sync silently reverted it — that race condition is now gone because the database itself is the source of truth.

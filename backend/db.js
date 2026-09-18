@@ -12,15 +12,22 @@ const ready = new Promise((resolve, reject) => db.serialize(() => {
   db.run('PRAGMA foreign_keys = ON');
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL, student_id TEXT UNIQUE, role TEXT NOT NULL CHECK(role IN ('main-admin','admin','student')),
-    failed_attempts INTEGER NOT NULL DEFAULT 0, locked_until TEXT, two_factor_secret TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    password TEXT NOT NULL,
+    student_id TEXT UNIQUE,
+    role TEXT NOT NULL CHECK(role IN ('main-admin','admin','student')),
+    temporary INTEGER NOT NULL DEFAULT 0,
+    failed_attempts INTEGER NOT NULL DEFAULT 0, 
+    locked_until TEXT, 
+    two_factor_secret TEXT, 
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   // Upgrade databases created by the original demo without destroying accounts.
-  db.run('ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0', () => {});
-  db.run('ALTER TABLE users ADD COLUMN locked_until TEXT', () => {});
-  db.run('ALTER TABLE users ADD COLUMN two_factor_secret TEXT', () => {});
-  db.run('ALTER TABLE users ADD COLUMN course TEXT', () => {});
-  db.run('ALTER TABLE users ADD COLUMN year_level INTEGER', () => {});
+  db.run('ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0', () => { });
+  db.run('ALTER TABLE users ADD COLUMN temporary INTEGER NOT NULL DEFAULT 0', () => {});
+  db.run('ALTER TABLE users ADD COLUMN locked_until TEXT', () => { });
+  db.run('ALTER TABLE users ADD COLUMN two_factor_secret TEXT', () => { });
+  db.run('ALTER TABLE users ADD COLUMN course TEXT', () => { });
+  db.run('ALTER TABLE users ADD COLUMN year_level INTEGER', () => { });
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_users_student_id ON users(student_id)');
   db.run(`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
   db.run(`CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, name TEXT NOT NULL, max_mark REAL NOT NULL DEFAULT 100 CHECK(max_mark > 0), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
@@ -103,16 +110,177 @@ function get(sql, params = []) { return ready.then(() => new Promise((resolve, r
 function all(sql, params = []) { return ready.then(() => new Promise((resolve, reject) => db.all(sql, params, (e, rows) => e ? reject(e) : resolve(rows)))); }
 async function transaction(work) {
   await ready; await run('BEGIN IMMEDIATE');
-  try { const result = await work(); await run('COMMIT'); return result; } catch (e) { try { await run('ROLLBACK'); } catch (_) {} throw e; }
+  try { const result = await work(); await run('COMMIT'); return result; } catch (e) { try { await run('ROLLBACK'); } catch (_) { } throw e; }
 }
+
+async function createAdmin({
+  name,
+  username,
+  password,
+  role = 'admin',
+  temporary = false
+}) {
+  if (!name?.trim()) {
+    throw new Error('Administrator name is required.');
+  }
+
+  if (!username?.trim()) {
+    throw new Error('Administrator username is required.');
+  }
+
+  if (!password) {
+    throw new Error('Administrator password is required.');
+  }
+
+  if (!['admin', 'main-admin'].includes(role)) {
+    throw new Error('Invalid administrator role.');
+  }
+
+  const existing = await get(
+    'SELECT id FROM users WHERE LOWER(username) = LOWER(?)',
+    [username.trim()]
+  );
+
+  if (existing) {
+    throw new Error('That username already exists.');
+  }
+
+  const hash = await bcrypt.hash(password, 12);
+
+  const result = await run(
+    `INSERT INTO users
+      (name, username, password, student_id, role, temporary)
+     VALUES (?, ?, ?, NULL, ?, ?)`,
+    [
+      name.trim(),
+      username.trim().toLowerCase(),
+      hash,
+      role,
+      temporary ? 1 : 0
+    ]
+  );
+
+  return {
+    id: result.lastID,
+    name: name.trim(),
+    username: username.trim().toLowerCase(),
+    role,
+    temporary: Boolean(temporary)
+  };
+}
+
+async function deleteUser(username) {
+  const account = await get(
+    'SELECT id, username, role FROM users WHERE LOWER(username) = LOWER(?)',
+    [username]
+  );
+
+  if (!account) {
+    throw new Error('Account not found.');
+  }
+
+  if (account.role === 'main-admin') {
+    throw new Error('The main administrator cannot be deleted.');
+  }
+
+  await transaction(async () => {
+    await run(
+      'DELETE FROM password_resets WHERE user_id = ?',
+      [account.id]
+    );
+
+    await run(
+      'DELETE FROM sessions WHERE user_id = ?',
+      [account.id]
+    );
+
+    await run(
+      'DELETE FROM users WHERE id = ?',
+      [account.id]
+    );
+  });
+
+  return { success: true };
+}
+
 function audit(actorId, action, entity, entityId, details) {
   return run('INSERT INTO audit_logs(actor_id,action,entity,entity_id,details) VALUES(?,?,?,?,?)',
     [actorId || null, action, entity || null, entityId == null ? null : String(entityId), details ? JSON.stringify(details) : null]);
 }
-async function createStudent({ name, username, password, studentId, course, yearLevel }) {
+async function createStudent({
+  name,
+  username,
+  password,
+  studentId,
+  course,
+  yearLevel
+}) {
+  if (!name?.trim()) {
+    throw new Error("Student name is required.");
+  }
+
+  if (!username?.trim()) {
+    throw new Error("Student username is required.");
+  }
+
+  if (!password) {
+    throw new Error("Student password is required.");
+  }
+
+  if (!studentId?.trim()) {
+    throw new Error("Student ID is required.");
+  }
+
+  const normalizedUsername = username.trim().toLowerCase();
+  const normalizedStudentId = studentId.trim();
+
+  const existingUsername = await get(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+    [normalizedUsername]
+  );
+
+  if (existingUsername) {
+    throw new Error("That username already exists.");
+  }
+
+  const existingStudentId = await get(
+    "SELECT id FROM users WHERE LOWER(student_id) = LOWER(?)",
+    [normalizedStudentId]
+  );
+
+  if (existingStudentId) {
+    throw new Error("That student ID is already registered.");
+  }
+
   const hash = await bcrypt.hash(password, 12);
-  const result = await run('INSERT INTO users(name,username,password,student_id,role,course,year_level) VALUES(?,?,?,?,?,?,?)', [name, username, hash, studentId, 'student', course || null, yearLevel || null]);
-  return { id: result.lastID, name, username, studentId, role: 'student', course: course || null, yearLevel: yearLevel || null };
+
+  const result = await run(
+    `INSERT INTO users
+      (name, username, password, student_id, role, course, year_level)
+     VALUES (?, ?, ?, ?, 'student', ?, ?)`,
+    [
+      name.trim(),
+      normalizedUsername,
+      hash,
+      normalizedStudentId,
+      course?.trim() || null,
+      Number.isFinite(Number(yearLevel))
+        ? Number(yearLevel)
+        : null
+    ]
+  );
+
+  return {
+    id: result.lastID,
+    name: name.trim(),
+    username: normalizedUsername,
+    studentId: normalizedStudentId,
+    role: "student",
+    course: course?.trim() || null,
+    yearLevel: Number.isFinite(Number(yearLevel))
+      ? Number(yearLevel)
+      : null
+  };
 }
 async function findUser(username, password) {
   const user = await get('SELECT * FROM users WHERE username = ?', [username]);
@@ -124,6 +292,28 @@ async function findUser(username, password) {
     return null;
   }
   await run('UPDATE users SET failed_attempts=0, locked_until=NULL WHERE id=?', [user.id]);
-  return { id: user.id, name: user.name, username: user.username, studentId: user.student_id, role: user.role, course: user.course || null, yearLevel: user.year_level || null };
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    studentId: user.student_id,
+    role: user.role,
+    temporary: Boolean(user.temporary),
+    course: user.course || null,
+    yearLevel: user.year_level || null
+  };
 }
-module.exports = { db, ready, run, get, all, transaction, audit, createStudent, findUser, bcrypt };
+module.exports = {
+  db,
+  ready,
+  run,
+  get,
+  all,
+  transaction,
+  audit,
+  createStudent,
+  createAdmin,
+  deleteUser,
+  findUser,
+  bcrypt
+};
