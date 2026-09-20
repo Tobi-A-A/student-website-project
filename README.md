@@ -3,11 +3,18 @@
 A responsive, local-first education portal prototype for administrators and students. It runs in a browser on Windows, Linux, macOS, iOS and Android through the same responsive web app. The selected app name is **Meridian Learning Hub**; existing custom institution names remain unchanged, while the old default name is migrated safely.
 
 ## Current implementation status
-Student account creation is now routed through the local SQLite API. Students can register from the login page, while administrators and main administrators can create student accounts from the staff workspace. All three paths use the same SQLite-backend student creation logic.
+Student account creation is routed through the local SQLite API. Students can register from the login page after initial system setup, while administrators and main administrators can create student accounts from the staff workspace. All three paths use the same SQLite-backed student creation logic.
 
-Administrator account creation is also SQLite-backend. Main administrators can create administrator and main-administor accounts, while administrator accounts can be marked as temporary or permanent. The main administrator account cannot be deleted, and normal administrators cannot delete administrator accounts.
+Administrator account creation is also SQLite-backed. Main administrators can create administrator and main-administrator accounts, while administrator accounts can be marked temporary or permanent. The main administrator account cannot be deleted, and normal administrators cannot delete administrator accounts.
 
-Profile and course information is also being migrated to SQLite so that changes persist across refreshes and are not overwritten by the periodic database synchronization
+Profile and course information are stored in SQLite so changes persist across refreshes and are not overwritten by periodic database synchronization.
+
+### Showcase-install status
+The current downloadable revision is configured as a **showcase build by default**. It includes example accounts, learners, marks, assignments, submissions, memos, teaching groups and tests/exams so the portal can be demonstrated immediately after installation. No real institution data should be entered into a showcase installation.
+
+The frontend still has no hard-coded authentication fallback; demo credentials are created by the backend seed. A genuinely clean installation remains available by explicitly disabling the demo seed with `SEED_DEMO=false` and `REACT_APP_SEED_DEMO=false`, then using the reset procedure described in [SHOWCASE_EXAMPLES_REMOVE.txt](SHOWCASE_EXAMPLES_REMOVE.txt).
+
+The five course examples (Computer Science, Business Administration, Psychology, Nursing and Engineering) are controlled separately and are shown by default. They can be hidden with `SEED_COURSE_EXAMPLES=false` on the backend and `REACT_APP_SEED_COURSE_EXAMPLES=false` on the frontend.
 
 ## Capacity expectations
 
@@ -27,7 +34,7 @@ With the optional SQLite API on a modern local machine, plan for approximately 1
 | Git | any | Only needed to clone. |
 
 Nothing else is required — no database server to install, no Docker, no accounts to
-register. The database is a single SQLite file created automatically on first run.
+register. The database is a single SQLite file created automatically on first backend start.
 
 ### Install
 
@@ -61,30 +68,58 @@ cd frontend
 npm start
 ```
 
-Then open **http://localhost:3000** and sign in with `mainadmin` / `ChangeMe123!`.
+Then open **http://localhost:3000**. With the downloaded showcase defaults, pre-made example accounts and sample academic content are expected so the workflows can be demonstrated immediately. For a real institutional installation, disable the showcase data first and then use the clean-install instructions below.
 
-Schools and colleges setting up for real use should follow
-[Clean install: starting with no demo data](#clean-install-starting-with-no-demo-data)
-instead, so no demo learners or demo passwords are ever created.
+The normal downloaded configuration is ready for the **showcase examples**. For instructions to remove them before a real deployment, see [Clean installation / removing showcase data](#clean-installation--removing-showcase-data).
 
 ### GitHub Codespaces
 
-Codespaces works, with one difference: the frontend must be told where the API is,
-because port 5000 is not on `localhost` from the browser's point of view.
+The Codespaces setup uses the React development server as a proxy. This is preferable to making
+the SQLite API public just so the browser can reach it: the browser talks to the forwarded frontend
+port **3000**, while the frontend dev server forwards `/api/*` and `/admin/*` to the backend on
+`localhost:5000` inside the Codespace.
 
-1. Run both `npm install` steps and both `npm start` commands as above.
-2. Open the **Ports** panel, find port **5000**, and set its visibility to **Public**
-   (right-click → Port Visibility → Public). Without this the browser is blocked from
-   reaching the API and the portal falls back to offline mode.
-3. Copy the forwarded URL for port 5000, then restart the frontend with it:
+The following project changes are required:
 
-```bash
-cd frontend
-REACT_APP_API_BASE="https://<your-codespace>-5000.app.github.dev" npm start
+1. In `frontend/src/App.js`, the API base should default to a relative URL:
+
+```js
+const API_BASE = (process.env.REACT_APP_API_BASE || "").replace(/\/+$/, "");
 ```
 
-The status line under the workspace heading shows whether the API connected. If it
-reads *offline/browser fallback*, port 5000 is either not running or still private.
+2. In `frontend/package.json`, add the Create React App proxy:
+
+```json
+"proxy": "http://localhost:5000"
+```
+
+3. In `backend/server.js`, use the environment-aware CORS configuration described in the patch
+   supplied with this README. Normal local origins remain allowed, and HTTPS `*.app.github.dev`
+   origins are allowed only when `CODESPACES=true`.
+
+Install both packages and start both processes:
+
+```bash
+cd backend
+npm install
+npm start
+
+# second terminal
+cd frontend
+npm install
+npm start
+```
+
+Open the forwarded **port 3000** in Codespaces. Port 5000 does **not** need to be public for the
+normal development workflow. Make port 3000 public only when you intentionally want other people to
+access the running portal.
+
+For a one-command local/Codespaces launch, the repository can also use the supplied
+`tools/start-dev.js` helper and the root scripts `npm run dev` / `npm run dev:clean`.
+
+The status line under the workspace heading still shows whether the API connected. If it reads
+*offline/browser fallback*, check that the backend is running and that the frontend was restarted
+after adding the proxy configuration.
 
 ### Troubleshooting
 
@@ -92,20 +127,29 @@ reads *offline/browser fallback*, port 5000 is either not running or still priva
 | --- | --- |
 | `Module not found: Error: Can't resolve 'jszip'` | Dependencies were not installed in `frontend/`. Run `npm install` there. If it persists, delete `frontend/node_modules` and `frontend/package-lock.json`, then `npm install` again. |
 | `Cannot find module 'express'` / `'sqlite3'` | Same problem in `backend/`. Run `npm install` inside `backend/`. |
-| Portal loads but shows *offline/browser fallback* | The API is not reachable. Confirm `npm start` is running in `backend/`, and on Codespaces that port 5000 is Public. |
-| `EADDRINUSE: address already in use :::5000` | Another process holds the port. Stop it, or start the API on another port with `PORT=5001 npm start` and set `REACT_APP_API_BASE` to match. |
+| Portal loads but shows *offline/browser fallback* | The API is not reachable. Confirm `npm start` is running in `backend/` and that `frontend/package.json` contains `"proxy": "http://localhost:5000"`. Restart the frontend after changing the proxy. |
+| `EADDRINUSE: address already in use :::5000` | Another process holds the port. Stop it, or stop the existing backend process. If you change the API to port 5001 during development, also change the CRA `proxy` to `http://localhost:5001`. |
 | `npm install` fails compiling `sqlite3` | Usually an unsupported Node version. Check `node --version` is 18+; on very new or unusual platforms a prebuilt binary may not exist, so install Node 20 or 22 LTS. |
-| Sign-in rejects the demo passwords | The database was created with demo seeding off. Either use the account made by `npm run create-admin`, or delete `backend/school_data/portal.sqlite` and restart to regenerate the demo data. |
+| Sign-in fails on a new install | This is expected until the first main administrator is created on the **Initial system setup** screen. If the setup screen is not appearing, stop the backend, remove `backend/school_data/`, restart the backend, and refresh the frontend. |
+| Old demo accounts still appear in the browser | Clean mode clears the legacy account/content keys when they are loaded. Also clear the site's Local Storage or use a private window if an old browser tab is still holding a previous build. |
+| A student can register before setup | The current backend rejects `POST /api/accounts/students` while the `users` table is empty. Restart the backend with the latest `server.js` if this route behaves differently. |
 
 ## Run locally
 
+The frontend can display its browser-local fallback without the API, but the SQLite-backed account, mark and staff data requires the backend. For the normal full application, run both processes:
+
 ```bash
+cd backend
+npm install
+npm start
+
+# second terminal
 cd frontend
 npm install
 npm start
 ```
 
-In a second terminal, start the local SQLite API (optional for the browser-only demo):
+The local SQLite API is required for SQLite-backed account, mark and staff data persistence:
 
 ```bash
 cd backend
@@ -146,116 +190,146 @@ The staff workspace polls the database every five seconds. A failed poll does
 not overwrite the last successful display; it shows a visible connection error
 and retries automatically.
 
-### Demo accounts
+### Showcase examples (enabled by default)
 
-When demo seeding is enabled, the following accounts are created automatically:
+The downloaded project is deliberately ready for a presentation/demo. The backend seeds the example accounts, learners, marks, assessments and teaching groups, while the frontend seeds sample assignments, submissions, marking memos and tests/exams. This lets you open the portal and demonstrate the workflows without building a dataset by hand.
 
-| Role | Username | Password | Status |
-| --- | --- | --- | --- |
-| Main administrator | `mainadmin` | `ChangeMe123!` | Permanent |
-| Administrator | `admin` | `Admin123!` | Permanent |
-| Temporary administrator | `tempadmin` | `TempAdmin123!` | Temporary |
-| Student | `student` | `Student123!` | Student |
-
-The sign-in screen includes a **Create an account** link for new students. Student registrations are saved through the SQLite-backed `POST /api/accounts/students` endpoint. The same `createStudent()` database function is also used when staff create a learner from the administrator workspace.
-
-## Clean install: starting with no demo data
-
-Everything above describes the **demo**, which deliberately ships with 50 sample learners, sample
-marks, assignments, tests and the publicly documented passwords in the table above. A real school
-must not inherit any of that. Two flags — one per half of the app — give you a completely empty
-portal.
-
-Demo data lives in two separate places, so **both** flags are needed:
-
-| Where | What it seeds | Flag |
-| --- | --- | --- |
-| `backend/db.js` | Accounts, marks, assessments (SQLite) | `SEED_DEMO=false` |
-| `frontend/src/App.js` | Assignments, submissions, memos, tests (browser `localStorage`) | `REACT_APP_SEED_DEMO=false` |
-
-Both default to seeding, so cloning and running the project still gives you the working demo. Set
-them to `false` and you get an empty portal instead.
-
-### Setting up a clean install
-
-**Order matters.** Run `create-admin` *before* ever starting the server normally — a plain
-`npm start` creates the demo accounts on first run, and they would then have to be cleared with
-`npm run reset-db`.
-
-```bash
-# 1. Backend: create the first real administrator, then start with seeding disabled
-cd backend
-npm install
-npm run create-admin       # prompts for name, username and password (never echoed or logged)
-npm run start:clean        # same as npm start, but with SEED_DEMO=false
-
-# 2. Frontend: run without the demo assignments/tests/submissions
-cd ../frontend
-npm install
-```
-
-Then start the frontend with the demo flag off:
-
-```bash
-# macOS / Linux
-REACT_APP_SEED_DEMO=false npm start
-
-# Windows PowerShell
-$env:REACT_APP_SEED_DEMO="false"; npm start
-```
-
-For a production build, set the same variable before `npm run build`. It is read at **build
-time**, so a bundle built without it will still contain the demo assignments even if the backend
-is clean.
-
-`npm run create-admin` is the only way in on a clean install, since no accounts exist. It asks for
-the password interactively rather than taking it as an argument, so it never lands in shell history
-or a process listing, and stores only a bcrypt hash. It refuses duplicate usernames, passwords under
-8 characters, and mismatched confirmations, and warns you if a main administrator already exists.
-Both `create-admin` and `reset-db` disable seeding internally, so neither can accidentally create
-demo accounts as a side effect of opening the database.
-
-The **Demo accounts** box on the sign-in page hides itself automatically in clean mode, so the
-demo passwords are never displayed to real users.
-
-After the first administrator is created, additional students and administrator accounts can be created from the application itself and are written to SQLite through the authentication API.
-
-### Clearing an existing database
-
-If you already ran the demo and want to reuse the same database file, wipe it rather than hunting
-for the SQLite file:
+Backend (default):
 
 ```bash
 cd backend
-npm run reset-db             # shows what would be deleted, changes nothing
-npm run reset-db -- --yes    # actually clears every table
-npm run create-admin
+npm start
 ```
 
-The dry run prints the row counts first so you can see exactly what you are about to lose. The wipe
-runs inside a single transaction in foreign-key-safe order, so it can never leave the database
-half-cleared, and it resets the `AUTOINCREMENT` counters so a clean install starts from id 1. The
-schema itself is preserved.
+The frontend sample assignments, submissions, memos and tests are also enabled by default:
 
-Deleting `backend/school_data/portal.sqlite` also works — the schema is recreated on next start.
+```bash
+cd frontend
+npm start
+```
 
-Students will also want to clear the browser side (`localStorage`) if they previously loaded the
-demo, since assignments and submissions are cached there: open DevTools → Application → Local
-storage → clear, or use a private window.
+You can still explicitly turn the showcase data off with `SEED_DEMO=false` and `REACT_APP_SEED_DEMO=false`. The separate course-example setting is documented below.
 
-### Verification status
+### Clean installation / removing showcase data
 
-The project has previously passed frontend and backend build/test checks, but account, student creation and profile persistence have been modified since that verification pass. These areas should be re-tested after the latest SQLite changes before the results are described as fully verified.
+A clean installation is **not the default** because this project is currently prepared for showcasing. To prepare a downloaded copy for real institutional setup, follow the separate `SHOWCASE_EXAMPLES_REMOVE.txt` file included with the project. The essential configuration is:
+
+With the demo flags disabled and the runtime data reset, the first-run flow is:
+
+```text
+Start backend
+    ↓
+SQLite database/tables created if missing
+    ↓
+users table contains 0 rows
+    ↓
+Initial system setup screen
+    ↓
+Create first main administrator
+    ↓
+Normal sign-in and portal use
+    ↓
+Main administrator creates real admins/students
+```
+
+### Course examples
+
+Five course examples are provided for the showcase and are enabled by default:
+
+- Computer Science
+- Business Administration
+- Psychology
+- Nursing
+- Engineering
+
+They are separate from administrator-created courses. Administrator-created courses are stored in SQLite and persist normally. The course examples are read from application configuration so they can be removed without deleting real course records.
+
+To hide the example courses in a clean deployment, set both of these values before starting the application:
+
+Backend:
+
+```text
+SEED_COURSE_EXAMPLES=false
+```
+
+Frontend:
+
+```text
+REACT_APP_SEED_COURSE_EXAMPLES=false
+```
+
+Restart the backend and frontend after changing the variables.
+
+### Completely reset an existing installation
+
+**Stop the backend first.** The supplied `backend/reset-install.js` script deletes the complete runtime data directory, including the SQLite database and uploaded files. It does not modify your application source.
+
+```bash
+cd backend
+node reset-install.js
+npm start
+```
+
+After the restart, the database schema is recreated automatically. When `SEED_DEMO=false` remains set, the portal returns to **Initial system setup** with zero users and no showcase accounts are created.
+
+On Windows PowerShell the command is the same:
+
+```powershell
+cd backend
+node reset-install.js
+npm start
+```
+
+If `reset-install.js` reports a file/permission error, make sure the backend process is stopped before running it.
+
+### Switching an existing demo database to a genuinely fresh install
+
+Changing `SEED_DEMO` to false prevents future seed inserts, but it does **not** delete accounts that are already stored in SQLite. For a true fresh start, stop the backend, run `node reset-install.js`, then start the backend again.
+
+The same distinction applies to the browser: a fresh backend database does not automatically remove stale `localStorage` from an old frontend build. The clean frontend now performs a **one-time browser cleanup per clean-install build revision** rather than deleting local data on every refresh. This prevents a recurring timer from wiping legitimate local edits. If an old cached tab is still running, close it, reload the new frontend, or clear that site's Local Storage.
+
+### Initial administrator setup API
+
+The fresh-install flow uses two unauthenticated endpoints that become harmless once the first account exists:
+
+- `GET /api/setup/status` — reports whether setup is still required.
+- `POST /api/setup/create-main-admin` — creates the first main administrator and immediately starts a normal session for that account. The endpoint re-checks that the database still contains zero users inside a transaction, so only the first request can succeed.
+
+After the first main administrator is created, `GET /api/setup/status` reports `setupRequired: false`, the setup screen disappears, and student self-registration is enabled.
+
+### Verification performed for this revision
+
+The fresh-install revision was checked against the supplied source snapshot and fresh-install bundle:
+
+- `server.js`: `node --check` passed.
+- `db.js`: `node --check` passed.
+- `reset-install.js`: `node --check` passed.
+- `frontend/src/App.js`: TypeScript/JSX parser diagnostics reported **0 syntax diagnostics**.
+- TypeScript `checkJs` reported **0 undefined-name diagnostics** (`TS2304`, `TS2552`, `TS2448`) across the supplied JS files.
+- The credential scan found **0 hard-coded demo credentials in `App.js` or `server.js`**.
+- Backend showcase seeding is enabled by default and can be disabled with `SEED_DEMO=false`.
+- Frontend showcase content is enabled by default and can be disabled with `REACT_APP_SEED_DEMO=false`.
+- Frontend authentication still has no local demo-account fallback; credentials come from the SQLite seed.
+- When clean mode is explicitly selected, the browser-storage reset is **one-time per build revision**, so legitimate local edits are not deleted on every refresh.
+- A browser-storage simulation confirmed stale `portal-*` data is cleared on the first clean run while unrelated keys remain and later legitimate portal data survives subsequent runs.
+- All 12 SQLite `CREATE TABLE` statements were executed successfully against an isolated SQLite test database, and all 19 schema index statements found in the source were executed successfully.
+- The reset script was executed against a temporary `school_data` directory and successfully removed it.
+- The reset script refused a production reset unless `ALLOW_RESET=true` was explicitly supplied.
+- The runtime database location resolves to `backend/school_data/portal.sqlite`.
+- The clean-install bundle does **not** contain a `school_data` directory; that runtime directory is created by `backend/db.js` when the backend starts, and the SQLite file is then located at `backend/school_data/portal.sqlite`.
+
+A real `npm install`, Express/SQLite process startup, browser interaction test, and end-to-end first-admin creation test still need to be run on the actual repository checkout because the source snapshot supplied for this revision does not contain `package.json`/`node_modules`.
 
 ## Folder guide
 
 - `frontend/` — React single-page portal, styling and browser-local account/content state.
-- `frontend/src/App.js` — local demo screens and workflow components (Accounts, Courses, CSV uploads, Results).
+- `frontend/src/App.js` — React portal screens and workflow components (Accounts, Courses, CSV uploads, Results).
 - `frontend/src/App.css` — responsive layout, theme tokens, workflow badges and form styling.
 - `backend/` — Express local API, upload handling, authenticated data views and SQLite database helpers.
-- `backend/scripts/` — operational scripts: `create-admin.js` (first administrator on a clean install), `reset-db.js` (clear all data), `start-clean.js` (run the API with demo seeding off).
+- `backend/reset-install.js` — development/local script that deletes the complete runtime `school_data/` directory so the next backend start returns to the initial setup screen.
+- `backend/scripts/` — operational scripts from earlier project revisions, if retained in your repository; the current first-admin flow is handled in the application itself.
 - `backend/test/` — focused SQLite/authentication tests.
-- `backend/school_data/` — runtime-only database and uploaded files (created automatically; do not commit its contents).
+- `backend/school_data/` — runtime-only SQLite database and uploaded files (created automatically on backend start; do not commit its contents).
 
 Unused CRA branding and the unused source logo have been removed; required favicon and manifest assets remain because the browser uses them.
 
@@ -264,7 +338,9 @@ Unused CRA branding and the unused source logo have been removed; required favic
 The browser uses these local endpoints (administrator endpoints require the
 session cookie created by sign-in):
 
-- `POST /api/accounts/students` — public student account registration backed by SQLite.
+- `GET /api/setup/status` — reports whether a first-run main administrator still needs to be created.
+- `POST /api/setup/create-main-admin` — creates the first main administrator while the database contains zero users and starts a session for it.
+- `POST /api/accounts/students` — public student account registration backed by SQLite after initial setup is complete.
 - `POST /api/accounts/sign-in` — local account sign-in and session cookie.
 - `GET /api/accounts/me` — restores the current signed-in account from the session cookie.
 - `PATCH /api/accounts/profile` — updates the signed-in user's profile information.
@@ -306,29 +382,25 @@ backups, OS disk encryption, least-privilege accounts, and retention/deletion
 rules. Do not put encryption keys in source control or expose them to the
 browser.
 
-On a fresh database, the backend seeds a published Biology demonstration mark
-for `student` (`STU-001`, 92%, `BIO-001`) plus **49 additional demo students**
-(`STU-002`–`STU-050`) spread across the five sample courses and year levels
-1–4, each with three assessments (`ASSESS-101/102/103`) in a mix of every
-workflow status (Draft, Submitted, Approved, Published, Locked) — 148 demo
-marks in total. This lets staff and student views be exercised with a
-realistic volume of learners immediately, without needing to manually create
-accounts first. The bulk seed only runs once (it checks for `STU-050` before
-inserting), so it is safe to restart the server repeatedly without
-duplicating rows. Assignment files and learner submissions remain
-browser-local in this prototype. Bulk student CSV export is supported; staff
-can also download every submitted file for one assignment as a single ZIP
-(built client-side with JSZip from the in-browser submission data) from the
-**Assignments** page's "Download all submissions (ZIP)" button. That download
-now fetches every submission's file in parallel and skips (rather than
-aborting on) any single missing/failed file, so bulk downloads for a class of
-30–100 students stay fast and resilient to one bad blob URL. Because
-submissions stay browser-local, this bundles only the files present in the
-current browser session; a production deployment should store submissions
-server-side and stream a real archive for every browser/device. Students
-must submit assignment work as a single `.zip` archive (other file types are
-rejected client-side) so multi-file projects are always packaged together and
-bulk downloads are uniformly zip-based.
+With the downloaded showcase defaults, the backend seeds a published Biology
+demonstration mark for `student` (`STU-001`, 92%, `BIO-001`) plus **49
+additional demo students** (`STU-002`–`STU-050`) spread across the five
+sample courses and year levels 1–4, with three assessments and a mixture of
+workflow statuses. Set `SEED_DEMO=false` when you want these backend examples
+removed on a clean installation. Assignment files and
+learner submissions remain browser-local in this prototype. Bulk student CSV
+export is supported; staff can also download every submitted file for one
+assignment as a single ZIP (built client-side with JSZip from the in-browser
+submission data) from the **Assignments** page's "Download all submissions
+(ZIP)" button. That download now fetches every submission's file in parallel
+and skips (rather than aborting on) any single missing/failed file, so bulk
+downloads for a class of 30–100 students stay fast and resilient to one bad
+blob URL. Because submissions stay browser-local, this bundles only the files
+present in the current browser session; a production deployment should store
+submissions server-side and stream a real archive for every browser/device.
+Students must submit assignment work as a single `.zip` archive (other file
+types are rejected client-side) so multi-file projects are always packaged
+together and bulk downloads are uniformly zip-based.
 
 Marks synced from SQLite carry a database `id`; the Results workflow dropdown
 now only offers the single valid next status (Draft → Submitted → Approved →
@@ -419,7 +491,7 @@ marker for the first pass.
   `Failed — remediation needed` once attempts are exhausted). A search box
   narrows the table down to one student by name or student ID, the same
   pattern used on the Results page.
-- Demo data ships with three ready-to-try tests — an Intro to Algorithms quiz
+- When `REACT_APP_SEED_DEMO=true` is enabled, demo mode includes three ready-to-try tests — an Intro to Algorithms quiz
   (Computer Science, Year 1), a Cell Biology exam (Biology, Year 2), and a
   Business fundamentals test (Business Management, Year 1) — so the feature
   can be exercised immediately with the seeded demo students.
@@ -726,18 +798,18 @@ matches the course they chose on the **Courses** page and the year of study they
 | `academicYear` | The calendar year the work was set in | defaults to the current academic year |
 | `term` | Term or semester label used on reports | free text |
 
-Staff are never filtered � main admins and admins always see and can mark every assignment. The add and edit
+Staff are never filtered   main admins and admins always see and can mark every assignment. The add and edit
 assignment forms expose all four fields, and after saving, the portal reports how many learners will actually
 receive the work so nobody publishes an assignment to an empty audience by accident.
 
-Students see a line above their list reading *"Showing work for **Biology** � Year 2"* so it is obvious why the
+Students see a line above their list reading *"Showing work for **Biology**   Year 2"* so it is obvious why the
 list looks the way it does, and how to change it.
 
 ### 2. Missed-submission warnings lead explicitly to remediation
 Two states are calculated from the deadline (`due` + `dueTime`, defaulting to 23:59):
 
-- **At risk** � unsubmitted and due within 72 hours. Shown inline as an amber nudge.
-- **Missed** � the deadline has passed and nothing was uploaded. Because staff already control the due date and
+- **At risk**   unsubmitted and due within 72 hours. Shown inline as an amber nudge.
+- **Missed**   the deadline has passed and nothing was uploaded. Because staff already control the due date and
   can extend it, a lapse at this point genuinely means remediation, so the wording says so plainly.
 
 Missed work triggers a one-off in-portal notification per assignment. Warned assignment IDs are remembered in
@@ -746,8 +818,8 @@ page visit. A summary banner at the top of the list counts how many assignments 
 
 ### 3. Previous-year archive
 Work from an earlier `academicYear` moves out of the active list into a collapsible **"Show previous years of
-&lt;course&gt;"** block. Year matching is offset by how long ago the work was set � a learner in Year 2 today was in
-Year 1 last year � so their own history actually appears instead of being filtered out. Each archived row shows
+&lt;course&gt;"** block. Year matching is offset by how long ago the work was set   a learner in Year 2 today was in
+Year 1 last year   so their own history actually appears instead of being filtered out. Each archived row shows
 the academic year, term, year of study, whether a submission was recorded, the final mark and grade, and a
 **Download marked ZIP** button where feedback exists.
 
@@ -766,7 +838,7 @@ count). It appears both in the portal and on the printed report card, and the si
 highlighted. Averages are weighted by each assessment's `weighting`, so a 100%-weighted exam correctly outweighs
 a 10% quiz.
 
-Printing reuses the project's existing approach � `window.open` plus an HTML table plus `window.print()` � so
+Printing reuses the project's existing approach   `window.open` plus an HTML table plus `window.print()`   so
 there is no PDF library and no external service. If pop-ups are blocked the portal says so rather than failing
 silently.
 
@@ -1003,11 +1075,13 @@ That keeps the data clear of any directory a deploy wipes and replaces.
 
 #### 5. Don't seed demo data into production
 
-Run the API with `SEED_DEMO=false` (`npm run start:clean`) and build the frontend with
-`REACT_APP_SEED_DEMO=false`, so no demo learners or demo passwords ever exist on the server. Create
-the first administrator with `npm run create-admin`, which prompts for the password rather than
-taking it as an argument. See [Clean install: starting with no demo data](#clean-install-starting-with-no-demo-data)
-for the full procedure. **Never ship `ChangeMe123!` / `Admin123!` / `Student123!` to a live system.**
+For any real deployment, run the API with `SEED_DEMO=false` and build the frontend with
+`REACT_APP_SEED_DEMO=false`, so no showcase learners or demo passwords are created. Also disable
+course examples with `SEED_COURSE_EXAMPLES=false` and `REACT_APP_SEED_COURSE_EXAMPLES=false`.
+Create the first administrator through the portal's **Initial system setup** screen. The setup
+endpoint creates the first main administrator only while the `users` table is empty. See the
+`SHOWCASE_EXAMPLES_REMOVE.txt` file for the full procedure. **Never ship `ChangeMe123!` /
+`Admin123!` / `Student123!` to a live system.**
 
 ### Backups
 
@@ -1079,3 +1153,7 @@ migration tool rather than `CREATE TABLE IF NOT EXISTS`, log aggregation and upt
 limiting on authentication, and a documented retention and privacy policy. The audit log already
 records the security-relevant events — but it should be shipped somewhere it cannot be edited by
 whoever can edit the database.
+
+### Verification performed
+
+The v10.1 source was rechecked as an integrated four-file set (`frontend/src/App.js`, `backend/server.js`, `backend/db.js`, and `backend/reset-install.js`). The final pass reported 0 Node syntax errors, 0 frontend unresolved-name diagnostics after dependency shims were supplied, 0 hard-coded demo credentials in the frontend/server, successful registration of all required setup/login/health routes in an isolated Express harness, successful SQLite schema/index creation in an isolated SQLite check, and successful reset-script behaviour. A live `npm install`, real Express/SQLite startup, and browser click-through still require the actual repository checkout because the supplied source snapshot did not include the project's package manifests or installed dependencies.
