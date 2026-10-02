@@ -5,9 +5,16 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "start:clean": "node scripts/start-clean.js",
+    "real": "node scripts/portal-install.js start real",
+    "demo": "node scripts/portal-install.js start demo",
+    "demo:fresh": "node scripts/portal-install.js fresh demo",
+    "clean": "node scripts/portal-install.js start clean",
+    "clean:fresh": "node scripts/portal-install.js fresh clean",
+    "start:clean": "node scripts/portal-install.js fresh clean",
+    "installs": "node scripts/portal-install.js status",
+    "backup": "node scripts/portal-install.js backup",
     "create-admin": "node scripts/create-admin.js",
-    "reset-db": "node scripts/reset-db.js",
+    "reset-db": "node reset-install.js",
     "test": "node --test"
   },
   "keywords": [],

@@ -10,6 +10,7 @@ const assert = require("node:assert/strict");
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "student-portal-unit-test-"));
 process.env.DB_PATH = path.join(testDir, "test.sqlite");
 process.env.SEED_DEMO = "false";
+process.env.SEED_COURSE_EXAMPLES = "true";
 
 const {
   createStudent,
